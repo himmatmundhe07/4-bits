@@ -1,11 +1,11 @@
 import { successResponse } from '../utils/responseFormatter.js';
-import OllamaService from '../ai/ollama.service.js';
+import GeminiService from '../ai/gemini.service.js';
 import RoleEngine from '../engine/role/index.js';
 import RoleEngineService from '../engine/role/service.js';
 import RoleService from '../services/role.service.js';
 import gameRepository from '../repositories/game.repository.js';
 
-const aiClient = new OllamaService();
+const aiClient = new GeminiService();
 const roleEngine = new RoleEngine({ aiClient });
 const roleEngineService = new RoleEngineService({ roleEngine });
 const roleService = new RoleService({ roleEngine: roleEngineService });

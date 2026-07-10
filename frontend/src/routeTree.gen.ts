@@ -13,6 +13,8 @@ import { Route as JoinRoomRouteImport } from './routes/join-room'
 import { Route as CreateRoomRouteImport } from './routes/create-room'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LobbyCodeRouteImport } from './routes/lobby.$code'
+import { Route as InvestigationCodeRouteImport } from './routes/investigation.$code'
+import { Route as CharacterDossierCodeRouteImport } from './routes/character-dossier.$code'
 
 const JoinRoomRoute = JoinRoomRouteImport.update({
   id: '/join-room',
@@ -34,17 +36,31 @@ const LobbyCodeRoute = LobbyCodeRouteImport.update({
   path: '/lobby/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InvestigationCodeRoute = InvestigationCodeRouteImport.update({
+  id: '/investigation/$code',
+  path: '/investigation/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CharacterDossierCodeRoute = CharacterDossierCodeRouteImport.update({
+  id: '/character-dossier/$code',
+  path: '/character-dossier/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/create-room': typeof CreateRoomRoute
   '/join-room': typeof JoinRoomRoute
+  '/character-dossier/$code': typeof CharacterDossierCodeRoute
+  '/investigation/$code': typeof InvestigationCodeRoute
   '/lobby/$code': typeof LobbyCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/create-room': typeof CreateRoomRoute
   '/join-room': typeof JoinRoomRoute
+  '/character-dossier/$code': typeof CharacterDossierCodeRoute
+  '/investigation/$code': typeof InvestigationCodeRoute
   '/lobby/$code': typeof LobbyCodeRoute
 }
 export interface FileRoutesById {
@@ -52,20 +68,43 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/create-room': typeof CreateRoomRoute
   '/join-room': typeof JoinRoomRoute
+  '/character-dossier/$code': typeof CharacterDossierCodeRoute
+  '/investigation/$code': typeof InvestigationCodeRoute
   '/lobby/$code': typeof LobbyCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/create-room' | '/join-room' | '/lobby/$code'
+  fullPaths:
+    | '/'
+    | '/create-room'
+    | '/join-room'
+    | '/character-dossier/$code'
+    | '/investigation/$code'
+    | '/lobby/$code'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/create-room' | '/join-room' | '/lobby/$code'
-  id: '__root__' | '/' | '/create-room' | '/join-room' | '/lobby/$code'
+  to:
+    | '/'
+    | '/create-room'
+    | '/join-room'
+    | '/character-dossier/$code'
+    | '/investigation/$code'
+    | '/lobby/$code'
+  id:
+    | '__root__'
+    | '/'
+    | '/create-room'
+    | '/join-room'
+    | '/character-dossier/$code'
+    | '/investigation/$code'
+    | '/lobby/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CreateRoomRoute: typeof CreateRoomRoute
   JoinRoomRoute: typeof JoinRoomRoute
+  CharacterDossierCodeRoute: typeof CharacterDossierCodeRoute
+  InvestigationCodeRoute: typeof InvestigationCodeRoute
   LobbyCodeRoute: typeof LobbyCodeRoute
 }
 
@@ -99,6 +138,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LobbyCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/investigation/$code': {
+      id: '/investigation/$code'
+      path: '/investigation/$code'
+      fullPath: '/investigation/$code'
+      preLoaderRoute: typeof InvestigationCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/character-dossier/$code': {
+      id: '/character-dossier/$code'
+      path: '/character-dossier/$code'
+      fullPath: '/character-dossier/$code'
+      preLoaderRoute: typeof CharacterDossierCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -106,6 +159,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CreateRoomRoute: CreateRoomRoute,
   JoinRoomRoute: JoinRoomRoute,
+  CharacterDossierCodeRoute: CharacterDossierCodeRoute,
+  InvestigationCodeRoute: InvestigationCodeRoute,
   LobbyCodeRoute: LobbyCodeRoute,
 }
 export const routeTree = rootRouteImport

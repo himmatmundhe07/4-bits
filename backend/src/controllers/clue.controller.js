@@ -2,9 +2,9 @@ import { successResponse } from '../utils/responseFormatter.js';
 import ClueEngine from '../engine/clue/index.js';
 import ClueEngineService from '../engine/clue/service.js';
 import ClueService from '../services/clue.service.js';
-import OllamaService from '../ai/ollama.service.js';
+import GeminiService from '../ai/gemini.service.js';
 
-const aiClient = new OllamaService();
+const aiClient = new GeminiService();
 const clueEngine = new ClueEngine({ aiClient });
 const clueEngineService = new ClueEngineService({ clueEngine });
 const clueService = new ClueService({ clueEngine: clueEngineService });

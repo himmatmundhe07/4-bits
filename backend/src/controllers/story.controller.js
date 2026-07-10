@@ -2,10 +2,10 @@ import { successResponse } from '../utils/responseFormatter.js';
 import gameRepository from '../repositories/game.repository.js';
 import StoryModuleService from '../engine/story/service.js';
 import StoryEngine from '../engine/story/index.js';
-import OllamaService from '../ai/ollama.service.js';
+import GeminiService from '../ai/gemini.service.js';
 import AppError from '../utils/appError.js';
 
-const aiClient = new OllamaService();
+const aiClient = new GeminiService();
 const storyEngine = new StoryEngine({ aiClient });
 const storyService = new StoryModuleService({ storyEngine });
 

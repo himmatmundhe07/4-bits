@@ -2,9 +2,9 @@ import { successResponse } from '../utils/responseFormatter.js';
 import TimelineEngine from '../engine/timeline/index.js';
 import TimelineEngineService from '../engine/timeline/service.js';
 import TimelineService from '../services/timeline.service.js';
-import OllamaService from '../ai/ollama.service.js';
+import GeminiService from '../ai/gemini.service.js';
 
-const aiClient = new OllamaService();
+const aiClient = new GeminiService();
 const timelineEngine = new TimelineEngine({ aiClient });
 const timelineEngineService = new TimelineEngineService({ timelineEngine });
 const timelineService = new TimelineService({ timelineEngine: timelineEngineService });

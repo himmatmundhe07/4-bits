@@ -19,7 +19,7 @@ export const createGame = async (req, res, next) => {
 export const getGame = async (req, res, next) => {
   try {
     const game = await gameService.getGameByCode(req.params.code.toUpperCase());
-    successResponse(res, game);
+    successResponse(res, { game });
   } catch (error) {
     next(error);
   }
@@ -50,7 +50,7 @@ export const leaveGame = async (req, res, next) => {
 export const getPlayers = async (req, res, next) => {
   try {
     const game = await gameService.getGameByCode(req.params.code.toUpperCase());
-    successResponse(res, game.players);
+    successResponse(res, { players: game.players });
   } catch (error) {
     next(error);
   }

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState, useRef } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { io } from "socket.io-client";
 import {
   beginInvestigation,
@@ -15,12 +15,14 @@ export const Route = createFileRoute("/lobby/$code")({
 
 function Lobby() {
   const { code } = Route.useParams();
+  const navigate = useNavigate();
   const [room, setRoom] = useState(null);
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [playerId, setPlayerId] = useState("");
   const [busy, setBusy] = useState(false);
+  const socketRef = useRef(null);
 
   useEffect(() => {
     setPlayerId(getPlayerId());
@@ -55,6 +57,7 @@ function Lobby() {
     const socket = io(API_BASE, {
       auth: { roomCode: code, playerId }
     });
+    socketRef.current = socket;
 
     socket.on("connect", () => {
       socket.emit("join-room");
@@ -97,6 +100,12 @@ function Lobby() {
       socket.disconnect();
     };
   }, [room?.roomCode, code, playerId]);
+
+  useEffect(() => {
+    if (room?.status === "started") {
+      navigate({ to: `/character-dossier/${code}` });
+    }
+  }, [room?.status, code, navigate]);
 
   if (loading) {
     return (
@@ -143,23 +152,17 @@ function Lobby() {
   const canBegin = isHost && meetsMin && allReady && room.status === "waiting";
 
   const onToggleReady = async () => {
-    if (!me) return;
+    if (!me || !socketRef.current) return;
     setBusy(true);
-    try {
-      await setReady(code, me.playerId, !me.isReady);
-    } finally {
-      setBusy(false);
-    }
+    socketRef.current.emit("player-ready");
+    setBusy(false);
   };
 
   const onBegin = async () => {
-    if (!canBegin) return;
+    if (!canBegin || !socketRef.current) return;
     setBusy(true);
-    try {
-      await beginInvestigation(code, playerId);
-    } finally {
-      setBusy(false);
-    }
+    socketRef.current.emit("start-game");
+    setBusy(false);
   };
 
   return (
