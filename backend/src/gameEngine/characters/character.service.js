@@ -176,6 +176,40 @@ function generateVictimChar(storyData) {
 }
 
 export function generateCharacters(playerCount, storyData) {
+  if (storyData && storyData.victimCharacter && Array.isArray(storyData.suspects)) {
+    const victim = {
+      ...storyData.victimCharacter,
+      characterId: null,
+      playerId: null,
+      isMurderer: false,
+      isVictim: true,
+      knownClues: [],
+      relationships: [],
+    };
+
+    const charactersList = storyData.suspects.map((s) => ({
+      ...s,
+      characterId: null,
+      playerId: null,
+      isVictim: false,
+      knownClues: [],
+      relationships: [],
+    }));
+
+    const victimChar = victim;
+    const murdererChar = charactersList.find(c => c.isMurderer) || charactersList[0];
+    murdererChar.isMurderer = true;
+
+    const suspectsList = charactersList.filter(c => c !== murdererChar);
+
+    return {
+      victim: victimChar,
+      murderer: murdererChar,
+      suspects: suspectsList,
+      characters: [victimChar, murdererChar, ...suspectsList],
+    };
+  }
+
   const victim = generateVictimChar(storyData);
   const totalSuspects = Math.max(playerCount, 3);
 

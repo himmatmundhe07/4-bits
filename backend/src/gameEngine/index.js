@@ -1,4 +1,5 @@
-import { generateStory } from './story/story.service.js';
+import StoryEngine from '../engine/story/index.js';
+import OllamaService from '../ai/ollama.service.js';
 import { generateCharacters, assignCharactersToPlayers } from './characters/character.service.js';
 import { generateRelationships } from './relationships/relationship.service.js';
 import { generateTimeline } from './timeline/timeline.service.js';
@@ -8,13 +9,24 @@ import gameStateService from './session/gameState.service.js';
 import { GAME_PHASE, SESSION_STATUS } from '../constants/game.constants.js';
 import { nanoid } from 'nanoid';
 
+const storyEngine = new StoryEngine({ aiClient: new OllamaService() });
+
 function generateId(prefix) {
   return prefix + '_' + nanoid(8);
 }
 
 class GameEngineService {
   async initializeGame(roomCode, players) {
-    const storyData = generateStory();
+    let storyData;
+    try {
+      console.log(`[GameEngine] Starting AI story generation for room ${roomCode}`);
+      storyData = await this.generateStory({ seed: roomCode, playerCount: players.length });
+      console.log('[GameEngine] AI story generation succeeded:', storyData);
+    } catch (error) {
+      console.error('[GameEngine] AI story generation failed, using fallback template:', error.message);
+      storyData = this.generateFallbackStory(players.length);
+      console.log('[GameEngine] Fallback story data:', storyData);
+    }
 
     const charResult = generateCharacters(players.length, storyData);
     const characters = charResult.characters;
@@ -42,6 +54,27 @@ class GameEngineService {
       fullExplanation: this.buildFullExplanation(murdererChar, victim, storyData),
     };
 
+    const suspectNames = suspects;
+    const startText = `The scene is set in ${storyData.location}. A body lies cold on the floor: the victim is ${victim.name}, who met their end via "${storyData.causeOfDeath.toLowerCase()}" around ${storyData.timeOfDeath}. The suspects gathered here are: ${suspectNames.join(", ")}. Investigate the evidence, question the suspects, and work together to uncover the truth.`;
+    
+    const logs = [{
+      messageId: 'msg_start',
+      type: 'ai',
+      author: 'Game Master',
+      text: startText,
+      createdAt: new Date()
+    }];
+
+    timeline.forEach(event => {
+      logs.push({
+        messageId: 'msg_timeline_' + event.eventId,
+        type: 'ai',
+        author: 'Game Master',
+        text: `Timeline (${event.timestamp}): ${event.actor} ${event.action} at ${event.location}.`,
+        createdAt: new Date()
+      });
+    });
+
     const sessionData = {
       roomCode,
       status: SESSION_STATUS.SETUP,
@@ -59,6 +92,7 @@ class GameEngineService {
       evidence,
       timeline,
       relationships,
+      logs,
       solution,
     };
 
@@ -103,6 +137,147 @@ class GameEngineService {
       'attempting to frame a known rival of the victim',
     ];
     return methods[Math.floor(Math.random() * methods.length)];
+  }
+
+  async generateStory({ theme, seed, playerCount } = {}) {
+    const response = await storyEngine.generateStory({ theme, seed, playerCount });
+    return {
+      theme: response.theme || theme || 'Murder Mystery',
+      location: response.location,
+      timeOfDeath: response.timeOfDeath,
+      murderWeapon: response.murderWeapon,
+      causeOfDeath: response.causeOfDeath,
+      motiveSummary: response.motiveSummary,
+      victim: response.victim,
+      murderer: response.murderer,
+      storySeed: response.storySeed || seed,
+      world: response.world,
+      crime: response.crime,
+      victimCharacter: response.victimCharacter,
+      suspects: response.suspects,
+    };
+  }
+
+  generateFallbackStory(playerCount = 3) {
+    const fallback = this.constructor.FALLBACK_STORIES[Math.floor(Math.random() * this.constructor.FALLBACK_STORIES.length)];
+    
+    const victimCharacter = {
+      name: fallback.victim,
+      age: 55,
+      occupation: 'Wealthy Aristocrat',
+      personality: 'Dignified but arrogant',
+      publicBackground: 'Owner of the estate, known for eccentric demands.',
+      privateSecret: 'Was hiding a massive family secret that could ruin them.',
+      objective: 'Rest in peace.',
+      inventory: ['Gold pocket watch', 'Will draft'],
+      alibi: 'Deceased',
+      motive: 'None'
+    };
+
+    const suspects = [];
+    // Murderer suspect
+    suspects.push({
+      name: fallback.murderer,
+      age: 34,
+      occupation: 'Disinherited Heir',
+      personality: 'Greedy and impatient',
+      publicBackground: 'Next in line for the fortune, frequently seen arguing with the victim.',
+      privateSecret: 'IS THE MURDERER. Has forged the new inheritance will.',
+      objective: 'Clear your name and inherit the fortune.',
+      inventory: ['Silver lighter', 'Intricate key'],
+      alibi: 'Was alone in the library during the incident.',
+      motive: 'Stood to lose the entire inheritance.',
+      isMurderer: true
+    });
+
+    // Other suspects
+    const occupations = ['Family Doctor', 'Steward', 'Socialite Guest', 'Confidential Secretary'];
+    for (let i = 1; i < playerCount; i++) {
+      suspects.push({
+        name: `Guest ${i}`,
+        age: 28 + i * 5,
+        occupation: occupations[i - 1] || 'Guest',
+        personality: 'Nervous and secretive',
+        publicBackground: 'A close acquaintance of the victim with hidden ties.',
+        privateSecret: 'Has been secretly blackmailing the victim for years.',
+        objective: 'Discover the truth while hiding your blackmails.',
+        inventory: ['Lace handkerchief', 'Unopened letter'],
+        alibi: 'Was resting in their guest chambers.',
+        motive: 'The victim was about to cut them off.',
+        isMurderer: false
+      });
+    }
+
+    return {
+      theme: fallback.theme,
+      location: fallback.location,
+      timeOfDeath: fallback.timeOfDeath,
+      murderWeapon: fallback.murderWeapon,
+      causeOfDeath: fallback.causeOfDeath,
+      motiveSummary: fallback.motiveSummary,
+      victim: fallback.victim,
+      murderer: fallback.murderer,
+      storySeed: 'fallback',
+      world: '',
+      crime: '',
+      victimCharacter,
+      suspects
+    };
+  }
+
+  static get FALLBACK_STORIES() {
+    return [
+      {
+        theme: 'The Mansion Murder',
+        location: 'Blackwood Manor',
+        timeOfDeath: '11:45 PM',
+        murderWeapon: 'Antique Letter Opener',
+        causeOfDeath: 'Stabbed through the heart',
+        motiveSummary: 'The victim was about to disinherit the murderer, who stood to lose everything.',
+        victim: 'Lord Blackwood',
+        murderer: 'Evelyn Blackwood',
+      },
+      {
+        theme: 'The Coastal Conspiracy',
+        location: 'Seagull Harbor Inn',
+        timeOfDeath: '3:20 AM',
+        murderWeapon: 'Shipmate\'s Anchor Pin',
+        causeOfDeath: 'Blunt force trauma to the head',
+        motiveSummary: 'The murderer discovered the victim was responsible for a shipping scam that ruined their family.',
+        victim: 'Captain Ward',
+        murderer: 'Olivia Kane',
+      },
+      {
+        theme: 'The Express Enigma',
+        location: 'Orient Express Car No. 7',
+        timeOfDeath: '2:15 AM',
+        murderWeapon: 'Silk Strangling Cord',
+        causeOfDeath: 'Strangulation',
+        motiveSummary: 'The victim was a blackmailer who threatened to expose the murderer\'s darkest secret.',
+        victim: 'Dr. Moreau',
+        murderer: 'Celeste Dubois',
+      },
+      {
+        theme: 'The Masquerade Mystery',
+        location: 'Rosewood Opera House',
+        timeOfDeath: '10:30 PM',
+        murderWeapon: 'Poisoned Champagne',
+        causeOfDeath: 'Cyanide poisoning',
+        motiveSummary: 'The victim had stolen credit for the murderer\'s life\'s work, destroying their career.',
+        victim: 'Madame Sable',
+        murderer: 'Victor North',
+      },
+      {
+        theme: 'The Carnival Killing',
+        location: 'Midnight Circus Big Top',
+        timeOfDeath: '12:00 AM',
+        murderWeapon: 'Juggling Club',
+        causeOfDeath: 'Blunt force trauma',
+        motiveSummary: 'The victim had sabotaged the murderer\'s trapeze equipment years ago, causing a crippling fall.',
+        victim: 'Seraphina Vale',
+        murderer: 'Barnaby Cole',
+      },
+    ];
   }
 
   async getGameSession(roomCode) {

@@ -20,7 +20,7 @@ export const createGame = async (name, mode, maxMembers, hostId, hostName) => {
     hostId,
     settings: {
       maxPlayers: maxMembers,
-      minPlayers: 3,
+      minPlayers: 1,
     },
     players: [{
       playerId: hostId,
