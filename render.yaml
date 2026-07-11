@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: hacksprint-frontend
+    env: node
+    rootDir: frontend
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: node .output/server/index.mjs
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+      - key: PORT
+        value: 3000
+      - key: NITRO_PRESET
+        value: node-server
+
+  - type: web
+    name: hacksprint-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
