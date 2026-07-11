@@ -27,6 +27,7 @@ export const SOCKET_EVENTS = {
   EVIDENCE_GENERATED: 'evidence-generated',
   TIMELINE_GENERATED: 'timeline-generated',
   CHARACTER_ASSIGNED: 'character-assigned',
+  GAME_ENDED: 'game:ended',
 };
 
 export const ERROR_CODES = {

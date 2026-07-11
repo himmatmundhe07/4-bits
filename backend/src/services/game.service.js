@@ -10,7 +10,7 @@ import gameEngine from '../gameEngine/index.js';
  * @description Business logic for game management.
  */
 
-export const createGame = async (name, mode, maxMembers, hostId, hostName, revealPolicy = 'immediate') => {
+export const createGame = async (name, mode, maxMembers, hostId, hostName, revealPolicy = 'immediate', maxRounds = 3, roundDurationMinutes = 2) => {
   const roomCode = nanoid(6).toUpperCase();
 
   const gameData = {
@@ -19,6 +19,8 @@ export const createGame = async (name, mode, maxMembers, hostId, hostName, revea
     mode,
     hostId,
     revealPolicy,
+    maxRounds,
+    roundDurationMinutes,
     settings: {
       maxPlayers: maxMembers,
       minPlayers: 1,

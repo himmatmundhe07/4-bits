@@ -23,10 +23,87 @@ export const startRound = async (roomCode) => {
     
     // Only increment round number if this is not the very first round initialization
     if (session.roundTimerEnd !== null) {
+      if (session.roundNumber >= (session.maxRounds || 3)) {
+        // Max rounds reached and killer was not captured -> Killer wins!
+        session.phase = GAME_PHASE.RESULT;
+        
+        const votingMsg = {
+          messageId: 'msg_' + nanoid(8),
+          type: 'ai',
+          author: 'Game Master',
+          text: `[INVESTIGATION FAILED] Time has run out. The killer has escaped!`,
+          createdAt: new Date()
+        };
+        session.logs.push(votingMsg);
+        await session.save();
+
+        game.gameState.phase = GAME_PHASE.RESULT;
+        game.phase = GAME_PHASE.RESULT;
+        game.status = 'ended';
+        await game.save();
+
+        const murdererChar = session.characters.find(c => c.isMurderer);
+        const murdererPlayerId = murdererChar?.playerId;
+        const allPlayers = game.players.map(player => {
+          const char = session.characters.find(c => c.playerId === player.playerId);
+          return {
+            playerId: player.playerId,
+            name: player.name,
+            characterName: char?.name || player.name,
+            occupation: char?.occupation || '',
+            isMurderer: char?.isMurderer || false,
+            isEliminated: char ? (char.emergencyMeetingsRemaining === 0) : false,
+          };
+        });
+
+        const basePayload = {
+          accusedId: null,
+          actualKillerId: murdererPlayerId,
+          killerName: murdererChar?.name || 'Unknown',
+          killerOccupation: murdererChar?.occupation || 'Unknown',
+          killerMotive: session.motiveSummary || session.solution?.motive || '',
+          murderWeapon: session.murderWeapon || '',
+          victim: session.victim || '',
+          location: session.location || '',
+          causeOfDeath: session.causeOfDeath || '',
+          timeOfDeath: session.timeOfDeath || '',
+          roundNumber: session.roundNumber,
+          allPlayers,
+          outcome: 'killer_wins'
+        };
+
+        const io = getIO();
+        io.to(code).emit('phase-updated', GAME_PHASE.RESULT);
+        io.to(code).emit('log-updated', session.logs);
+        io.to(code).emit('session-updated', session);
+        
+        // Generate AI story in background
+        setTimeout(async () => {
+           try {
+             const { buildFinalRevealPrompt } = await import('../prompts/investigation.prompt.js');
+             const aiService = await import('./ai.service.js');
+             const revealPrompt = buildFinalRevealPrompt({
+                gameContext: session,
+                votes: [] // no votes, time ran out
+             });
+             if (aiService.aiClient) {
+                const res = await aiService.aiClient.generateCompletion(revealPrompt);
+                session.finalReveal = res.response || res.result || res;
+                await session.save();
+             }
+           } catch(e) {
+             console.error("[AI Final Reveal Error]", e);
+           }
+           io.to(code).emit('game:ended', basePayload);
+        }, 100);
+
+        return;
+      }
       session.roundNumber += 1;
     }
     
-    session.roundTimerEnd = new Date(Date.now() + 180000); // 3 minutes
+    const durationMs = (session.roundDurationMinutes || 3) * 60 * 1000;
+    session.roundTimerEnd = new Date(Date.now() + durationMs);
     session.discussionTimerEnd = null;
 
     session.characters.forEach(c => {
@@ -39,7 +116,7 @@ export const startRound = async (roomCode) => {
       messageId: 'msg_' + nanoid(8),
       type: 'ai',
       author: 'Game Master',
-      text: `[ROUND START] Round ${session.roundNumber} has begun. Actions replenished. You have 3 minutes to investigate.`,
+      text: `[ROUND START] Round ${session.roundNumber} of ${session.maxRounds || 3} has begun. Actions replenished. You have ${session.roundDurationMinutes || 3} minutes to investigate.`,
       createdAt: new Date()
     };
     session.logs.push(roundMsg);
@@ -60,13 +137,13 @@ export const startRound = async (roomCode) => {
     io.to(code).emit('log-updated', session.logs);
     io.to(code).emit('session-updated', session);
 
-    // Set 3 minute timeout
+    // Set round timeout based on config
     activeTimers[code] = {
       roundTimeout: setTimeout(() => {
         endRound(code, 'timer');
-      }, 180000)
+      }, durationMs)
     };
-    console.log(`[RoundTimer] Started round ${session.roundNumber} for room ${code}`);
+    console.log(`[RoundTimer] Started round ${session.roundNumber} for room ${code} with duration ${durationMs}ms`);
   } catch (err) {
     console.error(`[RoundTimer] Error starting round:`, err.message);
   }

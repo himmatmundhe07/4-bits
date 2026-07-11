@@ -33,31 +33,62 @@ export default class MeetingScene extends Phaser.Scene {
   }
 
   create() {
-    const centerX = 400;
-    const centerY = 270;
-    const rx = 220;
-    const ry = 110;
+    const W = this.cameras.main.width;
+    const H = this.cameras.main.height;
+    const centerX = W / 2;
+    const centerY = H / 2;
+    const rx = W * 0.35; // Responsive table radius
+    const ry = H * 0.25;
 
     // 1. Draw Table and Ambient Noir Lighting Vignette
     const bgGfx = this.add.graphics();
     bgGfx.fillStyle(0x0a0809, 1);
-    bgGfx.fillRect(0, 0, 800, 600);
+    bgGfx.fillRect(0, 0, W, H);
+
+    // Draw yellow bulb hanging from top center
+    const bulbX = centerX;
+    const bulbY = centerY - (H * 0.35); 
+    
+    // Wire
+    bgGfx.lineStyle(2, 0x111111, 1);
+    bgGfx.beginPath();
+    bgGfx.moveTo(bulbX, 0);
+    bgGfx.lineTo(bulbX, bulbY);
+    bgGfx.strokePath();
+
+    // Emitting Rays
+    bgGfx.fillStyle(0xfef08a, 0.05); // Very soft yellow cone
+    bgGfx.beginPath();
+    bgGfx.moveTo(bulbX - 4, bulbY + 5);
+    bgGfx.lineTo(centerX - rx * 1.8, H);
+    bgGfx.lineTo(centerX + rx * 1.8, H);
+    bgGfx.lineTo(bulbX + 4, bulbY + 5);
+    bgGfx.closePath();
+    bgGfx.fill();
+
+    // Glowing Bulb
+    bgGfx.fillStyle(0xfffbeb, 1);
+    bgGfx.fillCircle(bulbX, bulbY, 12);
+    bgGfx.fillStyle(0xfef08a, 0.5);
+    bgGfx.fillCircle(bulbX, bulbY, 18);
+    bgGfx.fillStyle(0xfef08a, 0.2);
+    bgGfx.fillCircle(bulbX, bulbY, 30);
 
     // Draw aged wood oval table
     const tableGfx = this.add.graphics();
     tableGfx.fillStyle(0x271c19, 1); // Dark rich mahogany wood
     tableGfx.lineStyle(6, 0xb45309, 1); // Brass detailing
-    tableGfx.fillEllipse(centerX, centerY, rx * 1.6, ry * 1.6);
-    tableGfx.strokeEllipse(centerX, centerY, rx * 1.6, ry * 1.6);
+    tableGfx.fillEllipse(centerX, centerY, rx * 1.2, ry * 1.2);
+    tableGfx.strokeEllipse(centerX, centerY, rx * 1.2, ry * 1.2);
 
     // Inner shadow table groove
     tableGfx.fillStyle(0x18110f, 0.4);
-    tableGfx.fillEllipse(centerX, centerY, rx * 1.3, ry * 1.3);
+    tableGfx.fillEllipse(centerX, centerY, rx * 0.95, ry * 0.95);
 
     // Draw spotlight effect vignette
     this.vignette = this.add.graphics();
     this.vignette.fillStyle(0x000000, 0.45);
-    this.vignette.fillRect(0, 0, 800, 600);
+    this.vignette.fillRect(0, 0, W, H);
 
     // 2. Shared Case Summary Panel (parchment clipboard) in the center of the table
     const docGfx = this.add.graphics();
@@ -82,13 +113,39 @@ export default class MeetingScene extends Phaser.Scene {
       wordWrap: { width: 190 }
     });
 
-    // 3. Layout seat positions
-    const numSeats = Math.max(this.players.length, 5);
+    // 3. Layout seat positions symmetrically with local player at the bottom
+    const numSeats = this.players.length;
+    let manualSeats = [];
+    
+    if (numSeats === 3) {
+      manualSeats = [
+        { x: centerX, y: centerY + ry, dir: 'up' },
+        { x: centerX - rx * 0.75, y: centerY - ry * 0.6, dir: 'down' },
+        { x: centerX + rx * 0.75, y: centerY - ry * 0.6, dir: 'down' }
+      ];
+    } else if (numSeats === 4) {
+      manualSeats = [
+        { x: centerX, y: centerY + ry, dir: 'up' },
+        { x: centerX - rx * 0.85, y: centerY, dir: 'right' },
+        { x: centerX + rx * 0.85, y: centerY, dir: 'left' },
+        { x: centerX, y: centerY - ry * 0.9, dir: 'down' },
+      ];
+    } else {
+      manualSeats = [
+        { x: centerX, y: centerY + ry, dir: 'up' },
+        { x: centerX - rx * 0.85, y: centerY + ry * 0.4, dir: 'right' },
+        { x: centerX + rx * 0.85, y: centerY + ry * 0.4, dir: 'left' },
+        { x: centerX - rx * 0.6, y: centerY - ry * 0.7, dir: 'down' },
+        { x: centerX + rx * 0.6, y: centerY - ry * 0.7, dir: 'down' }
+      ];
+    }
+
+    const localSeatIndex = this.seatAssignments[this.playerId] !== undefined ? this.seatAssignments[this.playerId] : 0;
+    
+    this.seatPositions = new Array(numSeats);
     for (let i = 0; i < numSeats; i++) {
-      const angle = (i / numSeats) * Math.PI * 2 - Math.PI / 2;
-      const x = centerX + Math.cos(angle) * rx;
-      const y = centerY + Math.sin(angle) * ry;
-      this.seatPositions.push({ x, y });
+      const physicalSeat = (i - localSeatIndex + numSeats) % numSeats;
+      this.seatPositions[i] = manualSeats[physicalSeat] || manualSeats[0];
     }
 
     // 4. Spawn Seated Avatars
@@ -111,14 +168,19 @@ export default class MeetingScene extends Phaser.Scene {
 
       // Player body sprite
       const tintColor = this.getColorFromId(pId);
-      const sprite = this.add.sprite(0, 0, 'character_spritesheet', 0);
+      let frame = 0; // down
+      if (seatPos.dir === 'up') frame = 9;
+      else if (seatPos.dir === 'left') frame = 3;
+      else if (seatPos.dir === 'right') frame = 6;
+      
+      const sprite = this.add.sprite(0, 0, 'character_spritesheet', frame);
       sprite.setScale(1.8);
       sprite.setTint(tintColor);
       container.add(sprite);
       container.sprite = sprite;
 
       // Player name label
-      const nameTxt = this.add.text(0, -32, p.name, {
+      const nameTxt = this.add.text(0, seatPos.dir === 'up' ? -38 : -32, p.name, {
         fontSize: '9px',
         color: '#ffffff',
         backgroundColor: 'rgba(0,0,0,0.65)',
@@ -128,7 +190,7 @@ export default class MeetingScene extends Phaser.Scene {
 
       // Role subtitle label
       const isMe = pId === this.playerId;
-      const roleTxt = this.add.text(0, 26, isMe ? 'YOU' : '', {
+      const roleTxt = this.add.text(0, seatPos.dir === 'up' ? 26 : 26, isMe ? 'YOU' : '', {
         fontSize: '8px',
         color: isMe ? '#fbbf24' : '#9ca3af',
         backgroundColor: 'rgba(0,0,0,0.65)',

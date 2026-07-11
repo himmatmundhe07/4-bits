@@ -1,46 +1,48 @@
 import Phaser from 'phaser';
 
-export default class Player extends Phaser.GameObjects.Container {
+export default class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, playerId, name, isLocal = false, tintColor = 0xffffff) {
-    super(scene, x, y);
+    super(scene, x, y, 'character_spritesheet', 0);
     this.scene = scene;
     this.playerId = playerId;
     this.name = name;
     this.isLocal = isLocal;
 
-    // 1. Create Player Sprite from spritesheet
-    this.bodySprite = scene.add.sprite(0, 0, 'character_spritesheet', 0);
-    this.bodySprite.setScale(1.5); // Make the character sprite 1.5x larger
-    this.bodySprite.setTint(tintColor);
-    this.add(this.bodySprite);
+    this.setScale(2.2);
+    this.setTint(tintColor);
 
     // 2. Add Name Label above player
-    this.nameLabel = scene.add.text(0, -40, name, {
+    this.nameLabel = scene.add.text(x, y - 40, name, {
       fontSize: '11px',
       fontFamily: 'Inter, system-ui, sans-serif',
       color: '#ffffff',
       backgroundColor: 'rgba(0, 0, 0, 0.6)',
       padding: { x: 4, y: 2 }
     }).setOrigin(0.5);
-    this.add(this.nameLabel);
 
     // 3. Add Ready Status indicator (for lobby)
-    this.statusLabel = scene.add.text(0, -56, '', {
+    this.statusLabel = scene.add.text(x, y - 56, '', {
       fontSize: '9px',
       fontFamily: 'Inter, system-ui, sans-serif',
       color: '#00ff00',
       fontStyle: 'bold'
     }).setOrigin(0.5);
-    this.add(this.statusLabel);
 
     // 4. Add to scene and enable physics
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
     // Configure physics body size (scaled proportionately)
-    this.body.setCollideWorldBounds(true);
-    this.body.setSize(36, 36);
-    this.body.setOffset(-18, -12);
+    this.setCollideWorldBounds(true);
+    // Use a very small hitbox centered at the feet so they don't snag on corners
+    this.body.setSize(12, 12);
+    this.body.setOffset(10, 20);
+  }
+
+  preUpdate(time, delta) {
+    super.preUpdate(time, delta);
+    if (this.nameLabel) this.nameLabel.setPosition(this.x, this.y - 40);
+    if (this.statusLabel && this.statusLabel.visible) this.statusLabel.setPosition(this.x, this.y - 56);
   }
 
   setReadyStatus(isReady) {
@@ -59,19 +61,17 @@ export default class Player extends Phaser.GameObjects.Container {
   }
 
   animate(vx, vy, dir) {
-    if (!this.bodySprite) return;
-
     const moving = Math.abs(vx) > 5 || Math.abs(vy) > 5;
     if (moving) {
       const currentDir = dir || this.getDirection(vx, vy) || 'down';
-      this.bodySprite.play(`walk_${currentDir}`, true);
+      this.play(`walk_${currentDir}`, true);
     } else {
-      this.bodySprite.stop();
+      this.stop();
       const currentDir = dir || 'down';
-      if (currentDir === 'down') this.bodySprite.setFrame(0);
-      else if (currentDir === 'left') this.bodySprite.setFrame(3);
-      else if (currentDir === 'right') this.bodySprite.setFrame(6);
-      else if (currentDir === 'up') this.bodySprite.setFrame(9);
+      if (currentDir === 'down') this.setFrame(0);
+      else if (currentDir === 'left') this.setFrame(3);
+      else if (currentDir === 'right') this.setFrame(6);
+      else if (currentDir === 'up') this.setFrame(9);
     }
   }
 
@@ -89,5 +89,11 @@ export default class Player extends Phaser.GameObjects.Container {
       return vy > 0 ? 'down' : 'up';
     }
     return null;
+  }
+
+  destroy(fromScene) {
+    if (this.nameLabel) this.nameLabel.destroy();
+    if (this.statusLabel) this.statusLabel.destroy();
+    super.destroy(fromScene);
   }
 }

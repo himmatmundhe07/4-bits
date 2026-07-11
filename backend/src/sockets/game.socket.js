@@ -4,6 +4,68 @@ import { startRound, triggerEmergencyMeeting } from '../services/roundTimer.serv
 import GameSession from '../models/gameSession.model.js';
 import Game from '../models/game.model.js';
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the allPlayers payload for the game:ended event.
+ * Joins game.players (names, connection) with session.characters (role, murderer flag).
+ */
+function buildAllPlayersPayload(game, session) {
+  return game.players.map(player => {
+    const char = session.characters.find(c => c.playerId === player.playerId);
+    return {
+      playerId: player.playerId,
+      name: player.name,
+      characterName: char?.name || player.name,
+      occupation: char?.occupation || '',
+      isMurderer: char?.isMurderer || false,
+      // emergencyMeetingsRemaining defaults to 1; 0 means they were voted out
+      isEliminated: char ? (char.emergencyMeetingsRemaining === 0) : false,
+    };
+  });
+}
+
+/**
+ * Scan session logs for meeting-called and vote-resolved entries and return
+ * human-readable bullet points for the Case Summary Dossier.
+ */
+function buildRoundEvents(session) {
+  const events = [];
+  let cluesThisRound = 0;
+  let currentRound = 1;
+
+  for (const log of session.logs) {
+    if (log.type !== 'ai') continue;
+    const t = log.text || '';
+
+    if (t.includes('[ROUND START]')) {
+      if (cluesThisRound > 0) {
+        events.push(`Round ${currentRound}: ${cluesThisRound} clue${cluesThisRound > 1 ? 's' : ''} discovered`);
+        cluesThisRound = 0;
+      }
+      const m = t.match(/Round (\d+)/);
+      if (m) currentRound = parseInt(m[1], 10);
+    } else if (t.includes('[ROUND END]') || t.includes('Discussion Phase')) {
+      // Round ended
+    } else if (t.includes('[EMERGENCY MEETING]')) {
+      const m = t.match(/Investigator (.+?) has called/);
+      if (m) events.push(`Round ${currentRound}: Emergency meeting called by ${m[1]}`);
+    } else if (t.includes('ELIMINATED:') || t.includes('voted out')) {
+      // Handled below via eliminatedRole
+    } else if (t.toLowerCase().includes('clue') || t.toLowerCase().includes('evidence') || t.toLowerCase().includes('discovered')) {
+      cluesThisRound++;
+    }
+  }
+
+  if (cluesThisRound > 0) {
+    events.push(`Round ${currentRound}: ${cluesThisRound} clue${cluesThisRound > 1 ? 's' : ''} discovered`);
+  }
+
+  return events;
+}
+
 const gameHandler = (io, socket) => {
   const { roomCode, playerId, playerName } = socket.data;
 
@@ -166,6 +228,88 @@ const gameHandler = (io, socket) => {
           eliminatedRole: game.revealPolicy === 'immediate' ? eliminatedRole : null,
           revealPolicy: game.revealPolicy
         });
+
+        // ---------------------------------------------------------------
+        // Game-ending condition check
+        // ---------------------------------------------------------------
+        const murdererChar = session.characters.find(c => c.isMurderer);
+        const murdererPlayerId = murdererChar?.playerId;
+
+        if (murdererPlayerId) {
+          const allPlayers = buildAllPlayersPayload(game, session);
+          const basePayload = {
+            accusedId: session.votingState.eliminatedId,
+            actualKillerId: murdererPlayerId,
+            killerName: murdererChar.name,
+            killerOccupation: murdererChar.occupation,
+            killerMotive: session.motiveSummary || session.solution?.motive || '',
+            murderWeapon: session.murderWeapon || '',
+            victim: session.victim || '',
+            location: session.location || '',
+            causeOfDeath: session.causeOfDeath || '',
+            timeOfDeath: session.timeOfDeath || '',
+            roundNumber: session.roundNumber,
+            allPlayers,
+          };
+
+          let outcome = null;
+          if (session.votingState.eliminatedId === murdererPlayerId) {
+            outcome = 'investigators_win';
+          } else if (session.votingState.eliminatedId) {
+            // Wrong person voted out - check if killer wins
+            const remainingInvestigators = game.players.filter(p =>
+              p.isConnected &&
+              p.playerId !== murdererPlayerId &&
+              p.playerId !== session.votingState.eliminatedId
+            );
+            if (remainingInvestigators.length === 0) {
+              outcome = 'killer_wins';
+            }
+          }
+
+          if (outcome) {
+            console.log(`[GameEnd] Vote ends game. Outcome: ${outcome} in room ${roomCode}`);
+
+            // Generate AI final reveal in background before emitting GAME_ENDED
+            setTimeout(async () => {
+              try {
+                const { buildFinalRevealPrompt } = await import('../prompts/investigation.prompt.js');
+                const aiService = await import('../services/ai.service.js');
+                
+                const fakeVotes = [];
+                for (const [voterId, votedId] of session.votingState.votes.entries()) {
+                  const vName = session.characters.find(c => c.playerId === voterId)?.name || 'Someone';
+                  let sName = 'Abstained';
+                  if (votedId !== 'abstain') {
+                     sName = session.characters.find(c => c.playerId === votedId)?.name || votedId;
+                  }
+                  fakeVotes.push({ playerName: vName, suspectName: sName });
+                }
+
+                const revealPrompt = buildFinalRevealPrompt({
+                  gameContext: session,
+                  votes: fakeVotes
+                });
+
+                if (aiService.aiClient) {
+                   const res = await aiService.aiClient.generateCompletion(revealPrompt);
+                   session.finalReveal = res.response || res.result || res;
+                   await session.save();
+                }
+              } catch(e) {
+                console.error("[AI Final Reveal Error]", e);
+              }
+              
+              io.to(roomCode).emit(SOCKET_EVENTS.GAME_ENDED, {
+                ...basePayload,
+                outcome,
+              });
+            }, 100);
+          } else {
+            console.log(`[Meeting] Innocent eliminated or tie. Game continues.`);
+          }
+        }
+        // ---------------------------------------------------------------
       }
     } catch (e) {
       console.error('[Meeting Vote Error]', e);

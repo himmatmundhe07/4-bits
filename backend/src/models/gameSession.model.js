@@ -129,6 +129,8 @@ const gameSessionSchema = new mongoose.Schema({
   votes: [voteSchema],
   finalReveal: { type: String, default: '' },
   roundNumber: { type: Number, default: 1 },
+  maxRounds: { type: Number, default: 3 },
+  roundDurationMinutes: { type: Number, default: 2 },
   roundTimerEnd: { type: Date, default: null },
   discussionTimerEnd: { type: Date, default: null },
   mapConfig: { type: Object, default: null },

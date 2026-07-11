@@ -11,6 +11,7 @@ import { useEffect } from "react";
 
 import appCss from "../styles.css?url";
 import { TransitionProvider } from "../lib/transitions";
+import { AudioManager } from "../components/AudioManager";
 
 function NotFoundComponent() {
   return (
@@ -115,11 +116,11 @@ export const Route = createRootRouteWithContext()({
 
 function RootShell({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         {children}
         <Scripts />
       </body>
@@ -132,6 +133,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <AudioManager />
       <TransitionProvider>
         <Outlet />
       </TransitionProvider>

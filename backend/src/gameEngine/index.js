@@ -12,6 +12,7 @@ import Game from '../models/game.model.js';
 
 const storyEngine = new StoryEngine({ aiClient: new OllamaService() });
 
+
 function generateId(prefix) {
   return prefix + '_' + nanoid(8);
 }
@@ -111,6 +112,8 @@ class GameEngineService {
       causeOfDeath: storyData.causeOfDeath,
       timeOfDeath: storyData.timeOfDeath,
       motiveSummary: storyData.motiveSummary,
+      maxRounds: game.maxRounds,
+      roundDurationMinutes: game.roundDurationMinutes,
       suspects,
       characters: assignedCharacters,
       evidence,

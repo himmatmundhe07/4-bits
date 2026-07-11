@@ -3,6 +3,7 @@ import LobbyScene from './scenes/LobbyScene';
 import InvestigationScene from './scenes/InvestigationScene';
 import MeetingScene from './scenes/MeetingScene';
 import VirtualJoystickScene from './plugins/VirtualJoystick';
+import FinalRevealScene from './scenes/FinalRevealScene';
 
 export const createGameConfig = (parentContainerId, onGameReady) => {
   return {
@@ -21,10 +22,13 @@ export const createGameConfig = (parentContainerId, onGameReady) => {
       },
     },
     scale: {
-      mode: Phaser.Scale.FIT,
+      mode: Phaser.Scale.RESIZE,
+      parent: parentContainerId,
+      width: '100%',
+      height: '100%',
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
-    scene: [LobbyScene, InvestigationScene, MeetingScene, VirtualJoystickScene],
+    scene: [LobbyScene, InvestigationScene, MeetingScene, VirtualJoystickScene, FinalRevealScene],
     callbacks: {
       postBoot: (game) => {
         if (onGameReady) {

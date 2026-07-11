@@ -1,7 +1,11 @@
 import Phaser from 'phaser';
 import Player from '../entities/Player';
-import { generateGameTextures, generateTilemapJSON } from '../utils/textureGenerator';
-
+import { generateGameTextures } from '../utils/textureGenerator';
+import { buildTilemapJSON } from '../utils/mapBuilder';
+import { remapMapConfig } from '../utils/zoneMapper';
+import { mansionMap } from '../maps/mansionMap';
+import { cyberCrimeMap } from '../maps/cyberCrimeMap';
+import { hauntedHouseMap } from '../maps/hauntedHouseMap';
 export default class InvestigationScene extends Phaser.Scene {
   constructor() {
     super({ key: 'InvestigationScene' });
@@ -30,16 +34,23 @@ export default class InvestigationScene extends Phaser.Scene {
 
   preload() {
     generateGameTextures(this);
-    const mapData = generateTilemapJSON(this.roomCode, this.mapConfig);
+
+    let mapDef = mansionMap;
+    const mode = (this.mapConfig && this.mapConfig.theme) ? this.mapConfig.theme.toLowerCase() : 'classic_mansion';
+    if (mode.includes('cyber')) mapDef = cyberCrimeMap;
+    if (mode.includes('haunted')) mapDef = hauntedHouseMap;
+
+    this.resolvedMapConfig = remapMapConfig(this.mapConfig, mapDef);
+    
+    const mapData = buildTilemapJSON(mapDef);
     this.cache.tilemap.add('investigation_map', { format: Phaser.Tilemaps.Formats.TILED_JSON, data: mapData });
+    
+    // Load track3 for player movement audio
+    // Replace with a local '/track3.mp3' when you add the file to the public folder!
+    this.load.audio('track3', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3');
   }
 
   create() {
-    const worldWidth = 1600;
-    const worldHeight = 1200;
-    this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
-    this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
-
     // 1. Create Walk Animations
     if (!this.anims.exists('walk_down')) {
       this.anims.create({
@@ -72,12 +83,26 @@ export default class InvestigationScene extends Phaser.Scene {
     const map = this.make.tilemap({ key: 'investigation_map' });
     const tileset = map.addTilesetImage('mansion_tiles', 'mansion_tiles');
     
+    // Create soft footprint drop-shadow underneath the map
+    const footprint = this.add.graphics();
+    footprint.fillStyle(0xfce7f3, 0.4); // soft pink/beige matching aesthetic
+    footprint.fillRoundedRect(-12, -12, map.widthInPixels + 24, map.heightInPixels + 24, 16);
+    footprint.setDepth(-1);
+
     // Create layers
     const floorLayer = map.createLayer('floor', tileset, 0, 0);
     this.wallsLayer = map.createLayer('walls', tileset, 0, 0);
+    this.furnitureLayer = map.createLayer('furniture', tileset, 0, 0);
+    map.createLayer('decoration', tileset, 0, 0);
     
-    // Enable collisions on wallsLayer
-    this.wallsLayer.setCollisionByExclusion([-1]);
+    // Enable collisions on walls and furniture (collide with all tile IDs >= 1)
+    this.wallsLayer.setCollisionBetween(1, 9999);
+    this.furnitureLayer.setCollisionBetween(1, 9999);
+
+    // Set boundaries and zoom
+    this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+    this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+    this.cameras.main.setZoom(1.4); // Zoom in to make the map and entities bigger
 
     // 3. Create Keyboard controls
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -87,6 +112,9 @@ export default class InvestigationScene extends Phaser.Scene {
       left: Phaser.Input.Keyboard.KeyCodes.A,
       right: Phaser.Input.Keyboard.KeyCodes.D
     });
+    
+    // Prevent Phaser from swallowing keystrokes so typing in chat works
+    this.input.keyboard.disableGlobalCapture();
 
     // Joystick overlay removed
 
@@ -98,11 +126,14 @@ export default class InvestigationScene extends Phaser.Scene {
       let sx = 300 + (index * 250) % 1000;
       let sy = 300 + (Math.floor(index / 4) * 200);
 
-      if (this.mapConfig && this.mapConfig.suspectSpawns) {
-        const spawn = this.mapConfig.suspectSpawns.find(s => s.suspectName.toLowerCase() === sus.name.toLowerCase());
+      if (this.resolvedMapConfig && this.resolvedMapConfig.suspectSpawns) {
+        const spawn = this.resolvedMapConfig.suspectSpawns.find(s => s.suspectName.toLowerCase() === sus.name.toLowerCase());
         if (spawn) {
           sx = spawn.x;
           sy = spawn.y;
+        } else if (this.resolvedMapConfig.suspectSpawns[index]) {
+          sx = this.resolvedMapConfig.suspectSpawns[index].x;
+          sy = this.resolvedMapConfig.suspectSpawns[index].y;
         }
       }
 
@@ -120,7 +151,9 @@ export default class InvestigationScene extends Phaser.Scene {
         padding: { x: 4, y: 2 }
       }).setOrigin(0.5);
 
-      const zone = this.add.zone(sx, sy, 80, 80);
+      const zone = this.add.zone(sx, sy, 100, 100);
+      this.physics.add.existing(zone, true);
+      zone.body.setSize(100, 100);
       zone.setData('hotspot', {
         type: 'suspect',
         name: sus.name,
@@ -131,15 +164,7 @@ export default class InvestigationScene extends Phaser.Scene {
 
     // 6. Spawn clues/evidence hotspots
     // Create pre-defined search coordinates for objects
-    const placements = (this.mapConfig && this.mapConfig.cluePlacements) || [
-      { clueName: "Desk", itemName: "Desk", x: 400, y: 700 },
-      { clueName: "Safe", itemName: "Safe", x: 600, y: 700 },
-      { clueName: "Laptop", itemName: "Laptop", x: 800, y: 700 },
-      { clueName: "Bookshelf", itemName: "Bookshelf", x: 1000, y: 700 },
-      { clueName: "Waste Basket", itemName: "Waste Basket", x: 400, y: 850 },
-      { clueName: "Coffee Table", itemName: "Coffee Table", x: 600, y: 850 },
-      { clueName: "Fireplace", itemName: "Fireplace", x: 800, y: 850 }
-    ];
+    const placements = (this.resolvedMapConfig && this.resolvedMapConfig.cluePlacements) || [];
 
     placements.forEach((placement, index) => {
       const cx = placement.x;
@@ -157,7 +182,9 @@ export default class InvestigationScene extends Phaser.Scene {
         padding: { x: 3, y: 1 }
       }).setOrigin(0.5);
 
-      const zone = this.add.zone(cx, cy, 70, 70);
+      const zone = this.add.zone(cx, cy, 90, 90);
+      this.physics.add.existing(zone, true);
+      zone.body.setSize(90, 90);
       zone.setData('hotspot', {
         type: 'inspect',
         name: item,
@@ -165,6 +192,45 @@ export default class InvestigationScene extends Phaser.Scene {
       });
       this.hotspots.add(zone);
     });
+
+    // 6.5 Spawn Emergency Button (Center of Foyer in Mansion Map -> x:24*32, y:10*32)
+    const emX = 768; // 24 * 32
+    const emY = 320; // 10 * 32
+
+    const emGfx = this.add.graphics();
+    // Base/Pedestal
+    emGfx.fillStyle(0x44403c, 1);
+    emGfx.fillCircle(emX, emY, 18);
+    // Outer Ring
+    emGfx.fillStyle(0x7f1d1d, 1);
+    emGfx.fillCircle(emX, emY, 14);
+    // Inner Button
+    emGfx.fillStyle(0xef4444, 1);
+    emGfx.fillCircle(emX, emY, 10);
+    
+    // Glass cover highlight
+    emGfx.fillStyle(0xffffff, 0.4);
+    emGfx.beginPath();
+    emGfx.arc(emX - 3, emY - 3, 4, 0, Math.PI * 2);
+    emGfx.fill();
+
+    this.add.text(emX, emY - 25, "EMERGENCY", {
+      fontSize: '8px',
+      color: '#f87171',
+      backgroundColor: 'rgba(0,0,0,0.7)',
+      padding: { x: 3, y: 1 },
+      fontFamily: 'monospace'
+    }).setOrigin(0.5);
+
+    const emZone = this.add.zone(emX, emY, 120, 120);
+    this.physics.add.existing(emZone, true);
+    emZone.body.setSize(120, 120);
+    emZone.setData('hotspot', {
+      type: 'emergency',
+      name: 'Emergency Button',
+      target: 'Emergency Button'
+    });
+    this.hotspots.add(emZone);
 
     // 7. Spawn players
     this.initialPlayers.forEach(p => {
@@ -190,10 +256,19 @@ export default class InvestigationScene extends Phaser.Scene {
         this.phase = newPhase;
       });
     }
+
+    // Initialize track3 audio instance
+    this.footstepsSound = this.sound.add('track3', { loop: true, volume: 0.3 });
   }
 
   update(time) {
     if (!this.localPlayer) return;
+
+    // Prevent character movement if the user is typing in chat/inputs
+    if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+      this.localPlayer.move(0, 0);
+      return;
+    }
 
     // Freeze local and remote movement during meetings
     if (this.phase === 'discussion' || this.phase === 'voting' || this.phase === 'result') {
@@ -221,6 +296,17 @@ export default class InvestigationScene extends Phaser.Scene {
 
     // 3. Apply Local Movement
     this.localPlayer.move(vx, vy);
+
+    // Audio tracking: Play track3 when moving, pause when stopped
+    if (vx !== 0 || vy !== 0) {
+      if (!this.footstepsSound.isPlaying) {
+        this.footstepsSound.play();
+      }
+    } else {
+      if (this.footstepsSound.isPlaying) {
+        this.footstepsSound.pause();
+      }
+    }
 
     // 4. Interpolate Remote Players
     this.playersMap.forEach((player, pId) => {
@@ -257,12 +343,35 @@ export default class InvestigationScene extends Phaser.Scene {
       if (!this.activeHotspot || this.activeHotspot.name !== this.overlappingThisFrame.name) {
         this.activeHotspot = this.overlappingThisFrame;
         this.game.events.emit('overlap-start', this.activeHotspot);
+        
+        // Show floating description text
+        if (!this.interactPrompt) {
+          this.interactPrompt = this.add.text(0, 0, "", {
+            fontSize: '12px',
+            fontFamily: 'monospace',
+            color: '#fff',
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            padding: { x: 4, y: 2 }
+          }).setOrigin(0.5).setDepth(100);
+        }
+        let prefix = "Inspect";
+        if (this.activeHotspot.type === 'suspect') prefix = "Talk to";
+        if (this.activeHotspot.type === 'emergency') prefix = "Near";
+        this.interactPrompt.setText(`[ ${prefix}: ${this.activeHotspot.name} ]`);
+        this.interactPrompt.setVisible(true);
       }
     } else {
       if (this.activeHotspot) {
         this.activeHotspot = null;
         this.game.events.emit('overlap-end');
+        if (this.interactPrompt) {
+          this.interactPrompt.setVisible(false);
+        }
       }
+    }
+
+    if (this.interactPrompt && this.interactPrompt.visible && this.localPlayer) {
+      this.interactPrompt.setPosition(this.localPlayer.x, this.localPlayer.y - 70);
     }
 
     // Reset collision state for next frame evaluation
@@ -283,9 +392,12 @@ export default class InvestigationScene extends Phaser.Scene {
     const playerSprite = new Player(this, spawnX, spawnY, pId, p.name || 'Unknown', isLocal, tintColor);
     playerSprite.hideReadyStatus();
 
-    // Collide with tilemap walls
+    // Collide with tilemap walls and furniture
     if (this.wallsLayer) {
       this.physics.add.collider(playerSprite, this.wallsLayer);
+    }
+    if (this.furnitureLayer) {
+      this.physics.add.collider(playerSprite, this.furnitureLayer);
     }
 
     this.playersMap.set(pId, playerSprite);

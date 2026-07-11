@@ -131,7 +131,7 @@ export default class LobbyScene extends Phaser.Scene {
 
       dummyData.forEach(d => {
         const playerSprite = new Player(this, d.x, d.y, d.playerId, d.name, false, d.tint);
-        playerSprite.bodySprite.setScale(2.5); // Make characters bigger for background aesthetic
+        playerSprite.setScale(2.5); // Make characters bigger for background aesthetic
         playerSprite.hideReadyStatus();
         if (this.wallsLayer) {
           this.physics.add.collider(playerSprite, this.wallsLayer);

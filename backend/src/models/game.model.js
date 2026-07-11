@@ -126,6 +126,14 @@ const gameSchema = new mongoose.Schema({
     enum: ['immediate', 'final_only'],
     default: 'immediate',
   },
+  maxRounds: {
+    type: Number,
+    default: 3,
+  },
+  roundDurationMinutes: {
+    type: Number,
+    default: 2,
+  },
   settings: {
     maxPlayers: {
       type: Number,

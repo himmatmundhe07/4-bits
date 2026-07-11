@@ -18,6 +18,8 @@ function CreateRoom() {
   const [name, setName] = useState("");
   const [hostName, setHostName] = useState(getStoredName());
   const [maxMembers, setMaxMembers] = useState(5);
+  const [maxRounds, setMaxRounds] = useState(3);
+  const [roundDurationMinutes, setRoundDurationMinutes] = useState(2);
   const [mode, setMode] = useState("classic_mansion");
   const [revealPolicy, setRevealPolicy] = useState("immediate");
   const [submitting, setSubmitting] = useState(false);
@@ -36,6 +38,8 @@ function CreateRoom() {
         name: name.trim(),
         mode,
         maxMembers,
+        maxRounds,
+        roundDurationMinutes,
         revealPolicy,
         hostName: hostName.trim()
       });
@@ -49,7 +53,7 @@ function CreateRoom() {
 
   return (
     <main 
-      className="min-h-screen bg-[color:var(--color-bg-base)] px-4 py-8 md:py-12 flex flex-col justify-center relative overflow-hidden"
+      className="min-h-[100dvh] bg-[color:var(--color-bg-base)] px-4 py-2 md:py-4 flex flex-col justify-center relative overflow-hidden"
       style={{
         backgroundImage: `linear-gradient(to bottom, rgba(10,8,9,0.95), rgba(10,8,9,0.95)), url("${wallImage}")`,
         backgroundSize: 'cover',
@@ -172,7 +176,7 @@ function CreateRoom() {
         {/* Form panel styled as a folder sheet stacked on desk (slight rotation) */}
         <form
           onSubmit={onSubmit}
-          className="mt-4 border border-stone-800/80 bg-stone-900/65 backdrop-blur-md p-4 md:p-6 rounded shadow-[0_30px_60px_rgba(0,0,0,0.9),_0_0_20px_rgba(251,191,36,0.02)] relative overflow-hidden transform md:rotate-[0.3deg]"
+          className="mt-2 border border-red-950/80 bg-red-950/10 backdrop-blur-md p-4 md:px-6 md:py-4 rounded shadow-[0_30px_60px_rgba(0,0,0,0.9),_0_0_20px_rgba(239,68,68,0.05)] relative overflow-hidden transform md:rotate-[0.3deg]"
         >
           {/* File Folder Top Notch Tab effect */}
           <div className="absolute top-0 left-8 px-4 py-0.5 bg-stone-800/80 border-b border-stone-950 font-typewriter text-[8px] text-stone-500 select-none">
@@ -182,120 +186,186 @@ function CreateRoom() {
           {/* Decorative scanner line */}
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[color:var(--color-accent-blood)] to-transparent opacity-40 animate-pulse" />
 
-          {/* Case Name Input */}
-          <div className="relative group">
-            <div className="flex items-center gap-2 mb-1.5">
-              <FileText className="w-3.5 h-3.5 text-amber-600" />
-              <span className="font-typewriter text-[10px] tracking-wider text-amber-200/60 typewriter-ink">
-                CASE NAME / INCIDENT TITLE
-              </span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Case Name Input */}
+            <div className="relative group">
+              <div className="flex items-center gap-2 mb-1.5">
+                <FileText className="w-3.5 h-3.5 text-red-600" />
+                <span className="font-typewriter text-[10px] tracking-wider text-red-300/60 typewriter-ink">
+                  CASE NAME / INCIDENT TITLE
+                </span>
+              </div>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="The Ashford Manor Incident..."
+                maxLength={60}
+                className="w-full border-0 border-b bg-transparent px-0 py-1 text-base text-[color:var(--color-text-primary)] outline-none transition-all duration-300 focus:border-red-600 placeholder-stone-700 font-serif italic"
+                style={{ borderBottomColor: "var(--color-border-hairline-strong)" }}
+                required 
+              />
             </div>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="The Ashford Manor Incident..."
-              maxLength={60}
-              className="w-full border-0 border-b bg-transparent px-0 py-2 text-base text-[color:var(--color-text-primary)] outline-none transition-all duration-300 focus:border-amber-600 placeholder-stone-700 font-serif italic"
-              style={{ borderBottomColor: "var(--color-border-hairline-strong)" }}
-              required 
-            />
+
+            {/* Investigator Name Input */}
+            <div className="relative group">
+              <div className="flex items-center gap-2 mb-1.5">
+                <User className="w-3.5 h-3.5 text-red-600" />
+                <span className="font-typewriter text-[10px] tracking-wider text-red-300/60 typewriter-ink">
+                  YOUR INVESTIGATOR NAME
+                </span>
+              </div>
+              <input
+                type="text"
+                value={hostName}
+                onChange={(e) => setHostName(e.target.value)}
+                placeholder="e.g. Inspector Vale"
+                maxLength={40}
+                className="w-full border-0 border-b bg-transparent px-0 py-1 text-base text-[color:var(--color-text-primary)] outline-none transition-all duration-300 focus:border-red-600 placeholder-stone-700 font-typewriter"
+                style={{ borderBottomColor: "var(--color-border-hairline-strong)" }}
+                required 
+              />
+            </div>
           </div>
 
-          {/* Investigator Name Input */}
-          <div className="mt-4 relative group">
-            <div className="flex items-center gap-2 mb-1">
-              <User className="w-3.5 h-3.5 text-amber-600" />
-              <span className="font-typewriter text-[10px] tracking-wider text-amber-200/60 typewriter-ink">
-                YOUR INVESTIGATOR NAME
-              </span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            {/* Max Investigators Selection */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-3.5 h-3.5 text-red-600" />
+                <span className="font-typewriter text-[10px] tracking-wider text-red-300/60 typewriter-ink">
+                  TOTAL INVESTIGATORS
+                </span>
+              </div>
+              <div className="flex gap-2">
+                {[3, 4, 5].map((n) => {
+                  const active = maxMembers === n;
+                  return (
+                    <button
+                      type="button"
+                      key={n}
+                      onClick={() => setMaxMembers(n)}
+                      className={`flex-1 py-1.5 font-typewriter text-base transition-all duration-200 border rounded relative ${
+                        active ? 'rubber-stamp border-red-800 text-red-500 animate-stamp shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 'border-stone-850 text-stone-400 bg-stone-900/20 hover:border-stone-700'
+                      }`}
+                    >
+                      {active && (
+                        <div className="absolute inset-0 border border-dashed border-red-700/30 m-0.5 rounded-sm pointer-events-none" />
+                      )}
+                      {n}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1 text-[8px] text-stone-500 italic font-courier">
+                Min 3 investigators. Max 5.
+              </p>
             </div>
-            <input
-              type="text"
-              value={hostName}
-              onChange={(e) => setHostName(e.target.value)}
-              placeholder="e.g. Inspector Vale"
-              maxLength={40}
-              className="w-full border-0 border-b bg-transparent px-0 py-1 text-base text-[color:var(--color-text-primary)] outline-none transition-all duration-300 focus:border-amber-600 placeholder-stone-700 font-typewriter"
-              style={{ borderBottomColor: "var(--color-border-hairline-strong)" }}
-              required 
-            />
+
+            {/* Reveal Policy Selection */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
+                <span className="font-typewriter text-[10px] tracking-wider text-red-300/60 typewriter-ink">
+                  REVEAL ELIMINATED ROLE
+                </span>
+              </div>
+              <div className="flex gap-2">
+                {[
+                  { value: "immediate", label: "Immediately" },
+                  { value: "final_only", label: "At Final Reveal" }
+                ].map((policy) => {
+                  const active = revealPolicy === policy.value;
+                  return (
+                    <button
+                      type="button"
+                      key={policy.value}
+                      onClick={() => setRevealPolicy(policy.value)}
+                      className={`flex-1 py-1.5 font-typewriter text-xs transition-all duration-200 border rounded relative ${
+                        active ? 'rubber-stamp border-red-800 text-red-500 animate-stamp shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 'border-stone-850 text-stone-400 bg-stone-900/20 hover:border-stone-700'
+                      }`}
+                    >
+                      {active && (
+                        <div className="absolute inset-0 border border-dashed border-red-700/30 m-0.5 rounded-sm pointer-events-none" />
+                      )}
+                      {policy.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1 text-[8px] text-stone-500 italic font-courier">
+                When is an eliminated player's role shown?
+              </p>
+            </div>
           </div>
 
-          {/* Max Investigators Selection */}
-          <div className="mt-5">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="w-3.5 h-3.5 text-amber-600" />
-              <span className="font-typewriter text-[10px] tracking-wider text-amber-200/60 typewriter-ink">
-                TOTAL INVESTIGATORS
-              </span>
+          <div className="flex gap-4 mt-4">
+            {/* Max Rounds Selection */}
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="w-3.5 h-3.5 text-red-600" />
+                <span className="font-typewriter text-[10px] tracking-wider text-red-300/60 typewriter-ink">
+                  TOTAL ROUNDS
+                </span>
+              </div>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((n) => {
+                  const active = maxRounds === n;
+                  return (
+                    <button
+                      type="button"
+                      key={n}
+                      onClick={() => setMaxRounds(n)}
+                      className={`flex-1 py-1 font-typewriter text-sm transition-all duration-200 border rounded relative ${
+                        active ? 'rubber-stamp border-red-800 text-red-500 animate-stamp shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 'border-stone-850 text-stone-400 bg-stone-900/20 hover:border-stone-700'
+                      }`}
+                    >
+                      {active && (
+                        <div className="absolute inset-0 border border-dashed border-red-700/30 m-0.5 rounded-sm pointer-events-none" />
+                      )}
+                      {n}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex gap-2">
-              {[3, 4, 5].map((n) => {
-                const active = maxMembers === n;
-                return (
-                  <button
-                    type="button"
-                    key={n}
-                    onClick={() => setMaxMembers(n)}
-                    className={`flex-1 py-1.5 font-typewriter text-base transition-all duration-200 border rounded relative ${
-                      active ? 'rubber-stamp border-red-800 text-red-500 animate-stamp shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 'border-stone-850 text-stone-400 bg-stone-900/20 hover:border-stone-700'
-                    }`}
-                  >
-                    {active && (
-                      <div className="absolute inset-0 border border-dashed border-red-700/30 m-0.5 rounded-sm pointer-events-none" />
-                    )}
-                    {n}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="mt-1 text-[9px] text-stone-500 italic font-courier">
-              Minimum 3 investigators required to coordinate. Maximum 5.
-            </p>
-          </div>
 
-          {/* Reveal Policy Selection */}
-          <div className="mt-5">
-            <div className="flex items-center gap-2 mb-2">
-              <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
-              <span className="font-typewriter text-[10px] tracking-wider text-amber-200/60 typewriter-ink">
-                REVEAL ELIMINATED ROLE
-              </span>
+            {/* Round Duration Selection */}
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Compass className="w-3.5 h-3.5 text-red-600" />
+                <span className="font-typewriter text-[10px] tracking-wider text-red-300/60 typewriter-ink">
+                  ROUND MINUTES
+                </span>
+              </div>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((n) => {
+                  const active = roundDurationMinutes === n;
+                  return (
+                    <button
+                      type="button"
+                      key={n}
+                      onClick={() => setRoundDurationMinutes(n)}
+                      className={`flex-1 py-1 font-typewriter text-sm transition-all duration-200 border rounded relative ${
+                        active ? 'rubber-stamp border-red-800 text-red-500 animate-stamp shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 'border-stone-850 text-stone-400 bg-stone-900/20 hover:border-stone-700'
+                      }`}
+                    >
+                      {active && (
+                        <div className="absolute inset-0 border border-dashed border-red-700/30 m-0.5 rounded-sm pointer-events-none" />
+                      )}
+                      {n}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex gap-2">
-              {[
-                { value: "immediate", label: "Immediately" },
-                { value: "final_only", label: "At Final Reveal Only" }
-              ].map((policy) => {
-                const active = revealPolicy === policy.value;
-                return (
-                  <button
-                    type="button"
-                    key={policy.value}
-                    onClick={() => setRevealPolicy(policy.value)}
-                    className={`flex-1 py-1.5 font-typewriter text-xs transition-all duration-200 border rounded relative ${
-                      active ? 'rubber-stamp border-red-800 text-red-500 animate-stamp shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 'border-stone-850 text-stone-400 bg-stone-900/20 hover:border-stone-700'
-                    }`}
-                  >
-                    {active && (
-                      <div className="absolute inset-0 border border-dashed border-red-700/30 m-0.5 rounded-sm pointer-events-none" />
-                    )}
-                    {policy.label}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="mt-1 text-[9px] text-stone-500 italic font-courier">
-              Choose whether a player's role is revealed upon elimination vote, or kept hidden until the final case resolution.
-            </p>
           </div>
 
           {/* Mystery Setting Card Grid */}
-          <div className="mt-5">
+          <div className="mt-4">
             <div className="flex items-center gap-2 mb-2">
-              <Compass className="w-3.5 h-3.5 text-amber-600" />
-              <span className="font-typewriter text-[10px] tracking-wider text-amber-200/60 typewriter-ink">
+              <Compass className="w-3.5 h-3.5 text-red-600" />
+              <span className="font-typewriter text-[10px] tracking-wider text-red-300/60 typewriter-ink">
                 MYSTERY SETTING
               </span>
             </div>
@@ -339,7 +409,7 @@ function CreateRoom() {
           )}
 
           {/* Form Actions Footer */}
-          <div className="mt-5 flex items-center justify-between border-t border-stone-850 pt-4">
+          <div className="mt-4 flex items-center justify-between border-t border-red-950/50 pt-3">
             <span className="font-typewriter text-[9px] text-stone-500 leading-tight max-w-[220px]">
               A unique digital case code will be assigned on startup.
             </span>

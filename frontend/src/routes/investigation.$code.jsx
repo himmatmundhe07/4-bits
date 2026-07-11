@@ -71,6 +71,10 @@ function InvestigationScreen() {
   // Mobile Tab State
   const [activeTab, setActiveTab] = useState("log");
 
+  // Desktop Sidebar State
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
+
   const logEndRef = useRef(null);
   const chatEndRef = useRef(null);
   const socketRef = useRef(null);
@@ -279,7 +283,61 @@ function InvestigationScreen() {
       }));
     });
 
+    // ── End-game reveal transition ─────────────────────────────────────────
+    sock.on("game:ended", async (data) => {
+      try {
+        // Fetch epilogue + round events before launching the scene
+        const API_BASE = import.meta.env.VITE_API_URL || window.location.origin;
+        let epilogueText = '';
+        let roundEvents = [];
+        try {
+          const res = await fetch(`${API_BASE}/api/games/${code}/epilogue`);
+          if (res.ok) {
+            const json = await res.json();
+            epilogueText = json.epilogueText || '';
+            roundEvents = json.roundEvents || [];
+          }
+        } catch (_) {
+          // Non-fatal — scene will use fallback text
+        }
+
+        const game = gameRef.current;
+        if (!game) return;
+
+        // Stop all currently active Phaser scenes
+        game.scene.getScenes(true).forEach(scene => {
+          game.scene.stop(scene.scene.key);
+        });
+
+        // Launch FinalRevealScene with full payload
+        game.scene.start('FinalRevealScene', {
+          socket: sock,
+          roomCode: code,
+          playerId,
+          isMuted,
+          outcome:          data.outcome,
+          accusedId:        data.accusedId,
+          actualKillerId:   data.actualKillerId,
+          killerName:       data.killerName,
+          killerOccupation: data.killerOccupation,
+          killerMotive:     data.killerMotive,
+          murderWeapon:     data.murderWeapon,
+          victim:           data.victim,
+          location:         data.location,
+          causeOfDeath:     data.causeOfDeath,
+          timeOfDeath:      data.timeOfDeath,
+          roundNumber:      data.roundNumber,
+          allPlayers:       data.allPlayers || [],
+          epilogueText,
+          roundEvents,
+        });
+      } catch (err) {
+        console.error('[game:ended] Failed to launch FinalRevealScene:', err);
+      }
+    });
+
     return () => {
+      sock.off('game:ended');
       sock.disconnect();
       setSocket(null);
       if (voiceManagerRef.current) {
@@ -326,6 +384,8 @@ function InvestigationScreen() {
     } else if (hs.type === 'inspect') {
       setActionType('inspect');
       setActionTarget(hs.target);
+    } else if (hs.type === 'emergency') {
+      // Nothing needed, the UI will react to hotspot.type === 'emergency'
     }
   };
 
@@ -425,6 +485,78 @@ function InvestigationScreen() {
     }
   };
 
+  // ── DEV: Direct preview of FinalRevealScene ──────────────────────────────
+  // Builds plausible mock data from the current session and launches the
+  // scene directly, bypassing the vote/socket flow entirely.
+  const previewEnding = (outcome = "investigators_win") => {
+    const game = gameRef.current;
+    if (!game) return;
+
+    // Find murderer from session characters (may be null if not yet loaded)
+    const murdererChar = session?.characters?.find(c => c.isMurderer);
+    const killerPlayerId = murdererChar?.playerId || players[0]?.playerId || "mock-killer";
+    const killerName     = murdererChar?.name       || "Evelyn Blackwood";
+    const killerOcc      = murdererChar?.occupation || "Disinherited Heir";
+    const killerMotive   = session?.motiveSummary   || "Stood to lose the entire inheritance.";
+
+    const accusedPlayer  = players[0] || { playerId: "mock-accused" };
+
+    // Build allPlayers from live data, falling back to a dummy list
+    const allPlayers = players.length > 0
+      ? players.map((p, i) => {
+          const char = session?.characters?.find(c => c.playerId === (p.playerId || p.id));
+          return {
+            playerId:      p.playerId || p.id,
+            name:          p.name || `Player ${i + 1}`,
+            characterName: char?.name       || `Character ${i + 1}`,
+            occupation:    char?.occupation || "Guest",
+            isMurderer:    char?.isMurderer || false,
+            isEliminated:  i === 0 && outcome === "killer_wins",
+          };
+        })
+      : [
+          { playerId: "mock-inv-1", name: "Player 1", characterName: "Dr. Fenwick",        occupation: "Family Doctor",        isMurderer: false, isEliminated: false },
+          { playerId: "mock-inv-2", name: "Player 2", characterName: "Clara Holt",          occupation: "Socialite Guest",      isMurderer: false, isEliminated: outcome === "killer_wins" },
+          { playerId: killerPlayerId, name: "Player 3", characterName: killerName,          occupation: killerOcc,              isMurderer: true,  isEliminated: outcome === "investigators_win" },
+        ];
+
+    const mockRoundEvents = [
+      "Round 1: 3 clues discovered by investigators",
+      "Round 2: Emergency meeting called by Player 1",
+      "Round 3: Clara Holt voted out (innocent)",
+      `Final vote: ${killerName} accused and found ${outcome === "investigators_win" ? "GUILTY" : "innocent"}`,
+    ];
+
+    const epilogueText = outcome === "investigators_win"
+      ? `${killerName} had concealed the murder weapon in the east wing fireplace — the very place the investigation log had marked as searched. A second sweep, prompted by Clara's final testimony, proved decisive.`
+      : `Despite the investigators' best efforts, ${killerName} slipped away before dawn. The case file remains open.`;
+
+    // Stop active scenes cleanly
+    game.scene.getScenes(true).forEach(s => game.scene.stop(s.scene.key));
+
+    game.scene.start("FinalRevealScene", {
+      roomCode:         code,
+      playerId,
+      isMuted,
+      outcome,
+      accusedId:        accusedPlayer.playerId || accusedPlayer.id,
+      actualKillerId:   killerPlayerId,
+      killerName,
+      killerOccupation: killerOcc,
+      killerMotive,
+      murderWeapon:     session?.murderWeapon  || "Antique Letter Opener",
+      victim:           session?.victim         || "Lord Blackwood",
+      location:         session?.location       || "Blackwood Manor",
+      causeOfDeath:     session?.causeOfDeath   || "Stabbed through the heart",
+      timeOfDeath:      session?.timeOfDeath    || "11:45 PM",
+      roundNumber:      session?.roundNumber    || 3,
+      allPlayers,
+      epilogueText,
+      roundEvents:      mockRoundEvents,
+  });
+  };
+
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[color:var(--color-bg-base)]">
@@ -465,12 +597,26 @@ function InvestigationScreen() {
     );
   }
 
+  const getColorFromIdStr = (id) => {
+    if (!id) return "#ffffff";
+    let hash = 0;
+    const idStr = String(id);
+    for (let i = 0; i < idStr.length; i++) {
+      hash = idStr.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const colors = [
+      "#ef4444", "#3b82f6", "#10b981", "#f59e0b",
+      "#8b5cf6", "#ec4899", "#06b6d4", "#14b8a6"
+    ];
+    return colors[Math.abs(hash) % colors.length];
+  };
+
   const renderSuspectsPanel = () => (
-    <div className="h-full flex flex-col border-r border-stone-850 bg-[color:var(--color-bg-base)]">
-      <div className="p-4 border-b border-stone-850">
-        <span className="font-typewriter text-[10px] text-[color:var(--color-text-tertiary)]">Persons of Interest</span>
+    <div className="h-full flex flex-col bg-white">
+      <div className="p-4 border-b-4 border-stone-800 bg-amber-100">
+        <span className="font-bold text-[14px] text-stone-800 tracking-wider">PERSONS OF INTEREST</span>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-stone-100">
         {suspects.map(s => {
           const suspectors = Object.keys(suspicionSignals).filter(pId => suspicionSignals[pId] === s.name);
           const suspectorNames = suspectors.map(pId => {
@@ -479,30 +625,41 @@ function InvestigationScreen() {
           });
 
           return (
-            <div key={s.id} className="p-3 border border-stone-850 bg-stone-900/40 relative">
+            <div key={s.id} className="p-3 bg-white rounded-xl relative shadow-[4px_4px_0_0_rgba(0,0,0,0.1)] border-2 border-stone-800">
               {/* Suspicion indicators */}
               {suspectorNames.length > 0 && (
-                <div className="absolute top-2 right-2 flex gap-1 items-center">
-                  <span className="text-[8px] font-typewriter text-red-500 font-bold">SUSPECTED:</span>
+                <div className="absolute top-2 right-2 flex gap-1 items-center z-10">
+                  <span className="text-[10px] font-bold text-red-500 bg-red-100 px-1 rounded border border-red-500">SUSPECTED!</span>
                   <div className="flex -space-x-1">
                     {suspectorNames.map((name, idx) => (
                       <div 
                         key={idx} 
                         title={name} 
-                        className="w-2 h-2 rounded-full bg-red-600 border border-stone-900" 
+                        className="w-3 h-3 rounded-full bg-red-500 border border-stone-900" 
                       />
                     ))}
                   </div>
                 </div>
               )}
 
-              <div className="flex justify-between items-start">
+              <div className="flex gap-3 items-center">
+                <div 
+                  className="w-12 h-12 rounded-full overflow-hidden border-2 border-stone-800 shrink-0 flex items-center justify-center relative"
+                  style={{ backgroundColor: s.isPlayer ? getColorFromIdStr(s.playerId) : '#e5e7eb' }}
+                >
+                  {/* Cartoon Character Thumbnail Representation */}
+                  <svg viewBox="0 0 32 32" className="w-10 h-10 mt-2">
+                    <rect x="8" y="12" width="16" height="20" rx="4" fill="#ffffff" />
+                    <circle cx="16" cy="8" r="6" fill="#fbcfe8" />
+                    <path d="M10 8 A 6 6 0 0 1 22 8 Z" fill="#451a03" />
+                  </svg>
+                </div>
                 <div>
-                  <p className="font-serif-display text-lg text-[color:var(--color-text-primary)]">{s.name}</p>
-                  <p className="text-xs text-[color:var(--color-text-secondary)] italic font-courier">{s.role}</p>
+                  <p className="font-bold text-lg text-stone-800 leading-tight">{s.name}</p>
+                  <p className="text-xs text-stone-500 font-bold">{s.role}</p>
                 </div>
                 {s.isPlayer && (
-                  <span className="text-[9px] font-typewriter bg-stone-800 text-stone-400 px-2 py-0.5 rounded-sm">Player</span>
+                  <span className="absolute bottom-2 right-2 text-[9px] font-bold bg-amber-400 text-stone-900 px-2 py-0.5 rounded-full border border-stone-800">Player</span>
                 )}
               </div>
               
@@ -656,15 +813,74 @@ function InvestigationScreen() {
 
           {/* Action indicator Overlay near local character */}
           {hotspot && phase === 'investigation' && (
-            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-stone-900/95 border border-amber-600/70 px-5 py-3 shadow-2xl rounded-md pointer-events-none z-10 flex flex-col items-center">
-              <span className="text-[10px] text-amber-500 font-bold uppercase tracking-wider font-typewriter">
-                {hotspot.type === 'suspect' ? `Near Suspect: ${hotspot.name}` : `Near Hotspot: ${hotspot.name}`}
+            <div className={`absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-stone-900/95 border ${hotspot.type === 'emergency' ? 'border-red-600 pointer-events-auto' : 'border-amber-600/70 pointer-events-none'} px-5 py-3 shadow-2xl rounded-md z-10 flex flex-col items-center`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider font-typewriter ${hotspot.type === 'emergency' ? 'text-red-500' : 'text-amber-500'}`}>
+                {hotspot.type === 'suspect' ? `Near Suspect: ${hotspot.name}` : hotspot.type === 'emergency' ? 'Emergency Button' : `Near Hotspot: ${hotspot.name}`}
               </span>
-              <span className="text-[9px] text-stone-400 mt-1 font-courier text-center">
-                Use the Ask/Inspect form at the bottom of the right drawer to act.
-              </span>
+              
+              {hotspot.type === 'emergency' ? (
+                <button 
+                  onClick={handleEmergencyMeeting}
+                  disabled={myChar?.emergencyMeetingsRemaining <= 0}
+                  className={`mt-2 text-[10px] font-bold font-typewriter border px-4 py-2 transition-colors ${
+                    myChar?.emergencyMeetingsRemaining > 0
+                      ? 'bg-red-950 border-red-700 text-red-500 hover:bg-red-900 hover:text-white cursor-pointer'
+                      : 'bg-stone-900 border-stone-800 text-stone-600 cursor-not-allowed opacity-50'
+                  }`}
+                >
+                  {myChar?.emergencyMeetingsRemaining > 0 ? "PRESS ALARM" : "OUT OF ALARMS"}
+                </button>
+              ) : (
+                <span className="text-[9px] text-stone-400 mt-1 font-courier text-center">
+                  Use the Ask/Inspect form at the bottom of the right drawer to act.
+                </span>
+              )}
             </div>
           )}
+
+          {/* ── DEV: Preview Ending buttons ─────────────────────────────── */}
+          <div className="absolute top-3 left-3 z-50 flex flex-col gap-1.5">
+            <span
+              style={{ fontSize: '8px', letterSpacing: '2px', color: '#44403c', fontFamily: 'Courier Prime, monospace' }}
+            >
+              DEV PREVIEW
+            </span>
+            <button
+              onClick={() => previewEnding("investigators_win")}
+              style={{
+                fontSize: '9px',
+                fontFamily: 'Courier Prime, monospace',
+                letterSpacing: '2px',
+                color: '#22c55e',
+                background: 'rgba(0,0,0,0.75)',
+                border: '1px solid #166534',
+                padding: '4px 10px',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={e => e.target.style.background = 'rgba(22,101,52,0.3)'}
+              onMouseLeave={e => e.target.style.background = 'rgba(0,0,0,0.75)'}
+            >
+              ▶ WIN ENDING
+            </button>
+            <button
+              onClick={() => previewEnding("killer_wins")}
+              style={{
+                fontSize: '9px',
+                fontFamily: 'Courier Prime, monospace',
+                letterSpacing: '2px',
+                color: '#ef4444',
+                background: 'rgba(0,0,0,0.75)',
+                border: '1px solid #7f1d1d',
+                padding: '4px 10px',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={e => e.target.style.background = 'rgba(127,29,29,0.3)'}
+              onMouseLeave={e => e.target.style.background = 'rgba(0,0,0,0.75)'}
+            >
+              ▶ LOSS ENDING
+            </button>
+          </div>
+          {/* ────────────────────────────────────────────────────────────── */}
 
           {/* Emergency meeting host action overlay */}
           {isMeetingActive && session?.hostId === playerId && (
@@ -810,7 +1026,7 @@ function InvestigationScreen() {
             </div>
 
             {/* Action Input form (overlay at drawer bottom, only visible when LOG view and active investigation) */}
-            {activeView === "log" && phase === "investigation" && (
+            {activeView === "log" && phase === "investigation" && hotspot?.type !== 'emergency' && (
               <div className="absolute bottom-0 left-0 right-0 border-t border-stone-850 bg-stone-950 p-4 shadow-xl z-20">
                 <form onSubmit={handleActionSubmit} className="space-y-3">
                   <div className="flex flex-wrap gap-1">
@@ -884,6 +1100,26 @@ function InvestigationScreen() {
                     </button>
                   </div>
                 </form>
+              </div>
+            )}
+
+            {/* Emergency Button Prompt Overlay */}
+            {phase === "investigation" && hotspot?.type === 'emergency' && (
+              <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 z-50">
+                <button 
+                  onClick={handleEmergencyMeeting}
+                  disabled={myChar?.emergencyMeetingsRemaining <= 0}
+                  className={`flex flex-col items-center gap-1 font-bold py-4 px-8 rounded-full border-4 shadow-[0_8px_0_0_rgba(0,0,0,1)] active:shadow-[0_0px_0_0_rgba(0,0,0,1)] active:translate-y-2 transition-all ${
+                    myChar?.emergencyMeetingsRemaining > 0 
+                      ? 'bg-red-500 hover:bg-red-400 text-white border-red-800 shadow-[0_8px_0_0_#991b1b] animate-pulse'
+                      : 'bg-stone-500 text-stone-300 border-stone-700 opacity-80 cursor-not-allowed'
+                  }`}
+                >
+                  <AlertOctagon className="w-8 h-8" />
+                  <span className="text-sm tracking-wider">
+                    {myChar?.emergencyMeetingsRemaining > 0 ? "CALL EMERGENCY MEETING" : "NO MEETINGS LEFT"}
+                  </span>
+                </button>
               </div>
             )}
           </div>
@@ -1096,16 +1332,37 @@ function InvestigationScreen() {
       {/* Main Layout split area */}
       <div className="flex-1 flex overflow-hidden">
         {/* --- DESKTOP VIEW --- */}
-        <div className="hidden md:flex w-full h-full">
-          <div className="w-[300px] shrink-0">
-            {renderSuspectsPanel()}
-          </div>
-          <div className="flex-1 min-w-0">
+        <div className="hidden md:flex w-full h-full relative">
+          
+          <div className="flex-1 min-w-0 w-full h-full relative z-10">
             {renderMainArea()}
           </div>
-          <div className="w-[300px] shrink-0">
+          
+          {/* Hamburger buttons */}
+          <button 
+            onClick={() => setLeftSidebarOpen(!leftSidebarOpen)} 
+            className="absolute top-4 left-4 z-40 bg-white border-2 border-stone-800 rounded-lg p-2 shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:bg-stone-100 transition-all text-stone-800"
+          >
+            <PanelRight className="w-6 h-6 rotate-180" />
+          </button>
+          
+          <button 
+            onClick={() => setRightSidebarOpen(!rightSidebarOpen)} 
+            className="absolute top-4 right-4 z-40 bg-white border-2 border-stone-800 rounded-lg p-2 shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:bg-stone-100 transition-all text-stone-800"
+          >
+            <PanelRight className="w-6 h-6" />
+          </button>
+          
+          {/* Left Sidebar */}
+          <div className={`absolute top-0 bottom-0 left-0 w-[300px] z-30 transition-transform duration-300 transform ${leftSidebarOpen ? 'translate-x-0' : '-translate-x-full'} shadow-[4px_0_0_0_rgba(0,0,0,1)] border-r-4 border-stone-800 bg-white`}>
+            {renderSuspectsPanel()}
+          </div>
+
+          {/* Right Sidebar */}
+          <div className={`absolute top-0 bottom-0 right-0 w-[300px] z-30 transition-transform duration-300 transform ${rightSidebarOpen ? 'translate-x-0' : 'translate-x-full'} shadow-[-4px_0_0_0_rgba(0,0,0,1)] border-l-4 border-stone-800 bg-white`}>
             {renderEvidencePanel()}
           </div>
+
         </div>
 
         {/* --- MOBILE VIEW --- */}

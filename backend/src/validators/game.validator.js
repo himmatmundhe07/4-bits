@@ -27,6 +27,12 @@ export const createGameValidator = [
     .optional()
     .isIn(['immediate', 'final_only'])
     .withMessage('revealPolicy must be either immediate or final_only'),
+  body('maxRounds')
+    .optional()
+    .isInt({ min: 1, max: 10 }),
+  body('roundDurationMinutes')
+    .optional()
+    .isInt({ min: 1, max: 10 }),
 ];
 
 export const joinGameValidator = [

@@ -1,71 +1,65 @@
 export function generateGameTextures(scene) {
-  // 1. Generate Character Walk Spritesheet (32x32 frames, 3 frames per direction, 4 directions)
+  // 1. Generate Character Walk Spritesheet (32x48 frames, 3 frames per dir, 4 dirs)
   // Directions: 0 = Down, 1 = Left, 2 = Right, 3 = Up
   if (!scene.textures.exists('character_spritesheet')) {
     const canvas = document.createElement('canvas');
     canvas.width = 96;  // 3 frames * 32px
-    canvas.height = 128; // 4 directions * 32px
+    canvas.height = 192; // 4 directions * 48px
     const ctx = canvas.getContext('2d');
 
-    // Helper to draw a single character frame
     const drawCharFrame = (ctx, fx, fy, dir, frameNum) => {
       ctx.save();
-      ctx.translate(fx * 32, fy * 32);
+      ctx.translate(fx * 32, fy * 48);
 
-      // Body (suit/clothes)
-      ctx.fillStyle = '#ffffff'; // White default, tinted dynamically in Phaser
+      // Body
+      ctx.fillStyle = '#ffffff'; 
       ctx.beginPath();
-      ctx.roundRect(8, 12, 16, 14, 4);
+      ctx.roundRect(8, 20, 16, 20, 4);
       ctx.fill();
 
       // Head
-      ctx.fillStyle = '#fbcfe8'; // Skin tone
+      ctx.fillStyle = '#fbcfe8'; 
       ctx.beginPath();
-      ctx.arc(16, 8, 6, 0, Math.PI * 2);
+      ctx.arc(16, 12, 8, 0, Math.PI * 2);
       ctx.fill();
 
-      // Hair (dark brown)
+      // Hair
       ctx.fillStyle = '#451a03';
       ctx.beginPath();
-      ctx.arc(16, 6, 6, Math.PI, 0);
+      ctx.arc(16, 10, 8, Math.PI, 0);
       ctx.fill();
 
-      // Eyes (looking in the moving direction)
+      // Eyes (looking in direction)
       ctx.fillStyle = '#000000';
       if (dir === 0) { // Down
-        ctx.fillRect(13, 7, 2, 2);
-        ctx.fillRect(17, 7, 2, 2);
+        ctx.fillRect(12, 10, 2, 2);
+        ctx.fillRect(18, 10, 2, 2);
       } else if (dir === 1) { // Left
-        ctx.fillRect(11, 7, 2, 2);
-        ctx.fillRect(14, 7, 2, 2);
+        ctx.fillRect(9, 10, 2, 2);
+        ctx.fillRect(13, 10, 2, 2);
       } else if (dir === 2) { // Right
-        ctx.fillRect(16, 7, 2, 2);
-        ctx.fillRect(19, 7, 2, 2);
-      } else if (dir === 3) { // Up
-        // Back of head, no eyes
-      }
+        ctx.fillRect(17, 10, 2, 2);
+        ctx.fillRect(21, 10, 2, 2);
+      } // dir === 3 is Up (no eyes)
 
-      // Legs / Walking movement animation
+      // Legs / Walking animation
       ctx.fillStyle = '#1e293b'; // Pants
-      let leftLegY = 26;
-      let rightLegY = 26;
+      let leftLegY = 40;
+      let rightLegY = 40;
       if (frameNum === 1) {
-        leftLegY = 24;
-        rightLegY = 27;
+        leftLegY = 36;
+        rightLegY = 44;
       } else if (frameNum === 2) {
-        leftLegY = 27;
-        rightLegY = 24;
+        leftLegY = 44;
+        rightLegY = 36;
       }
 
-      // Left leg
-      ctx.fillRect(10, 24, 4, leftLegY - 24 + 3);
-      // Right leg
-      ctx.fillRect(18, 24, 4, rightLegY - 24 + 3);
+      ctx.fillRect(10, 40, 5, leftLegY - 40 + 6); // Left leg
+      ctx.fillRect(17, 40, 5, rightLegY - 40 + 6); // Right leg
 
       ctx.restore();
     };
 
-    // Draw all directions and frames
     for (let dir = 0; dir < 4; dir++) {
       for (let frame = 0; frame < 3; frame++) {
         drawCharFrame(ctx, frame, dir, dir, frame);
@@ -74,41 +68,225 @@ export function generateGameTextures(scene) {
 
     scene.textures.addSpriteSheet('character_spritesheet', canvas, {
       frameWidth: 32,
-      frameHeight: 32
+      frameHeight: 48
     });
   }
 
-  // 2. Generate Tileset Image (32x32 tiles, 4x4 grid = 128x128px)
+  // 2. Generate 36-Tile Spritesheet (256x192px = 8x6 grid of 32x32 tiles)
   if (!scene.textures.exists('mansion_tiles')) {
     const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 128;
+    canvas.width = 256;
+    canvas.height = 192;
     const ctx = canvas.getContext('2d');
 
-    // Tile 1: Floor (dark rich wood parquet pattern)
-    ctx.fillStyle = '#1c1917'; // Base
-    ctx.fillRect(32, 0, 32, 32);
-    ctx.fillStyle = '#292524'; // Wood stripes
-    ctx.fillRect(34, 2, 28, 12);
-    ctx.fillRect(34, 18, 28, 12);
-    ctx.fillStyle = '#44403c'; // Details
-    ctx.strokeRect(32, 0, 32, 32);
+    const drawTile = (index, drawFunc) => {
+      const idx = index - 1; // 1-based to 0-based
+      const tx = (idx % 8) * 32;
+      const ty = Math.floor(idx / 8) * 32;
+      ctx.save();
+      ctx.translate(tx, ty);
+      // Optional: fill a background or leave transparent
+      drawFunc(ctx);
+      ctx.restore();
+    };
 
-    // Tile 2: Wall (elegant dark stone block)
-    ctx.fillStyle = '#292524'; // Stone dark
-    ctx.fillRect(64, 0, 32, 32);
-    ctx.fillStyle = '#44403c'; // Brick borders
-    ctx.strokeRect(64, 0, 32, 32);
-    ctx.fillRect(68, 6, 24, 8);
-    ctx.fillRect(68, 18, 24, 8);
+    // 1: FLOOR_WOOD_A
+    drawTile(1, (c) => {
+      c.fillStyle = '#8B5A2B'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#6e4722'; c.fillRect(0, 8, 32, 2); c.fillRect(0, 24, 32, 2);
+    });
+    // 2: FLOOR_WOOD_B
+    drawTile(2, (c) => {
+      c.fillStyle = '#8B5A2B'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#6e4722'; c.fillRect(0, 4, 16, 2); c.fillRect(16, 16, 16, 2);
+    });
+    // 3: FLOOR_WOOD_DARK
+    drawTile(3, (c) => {
+      c.fillStyle = '#3E2723'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#4E342E'; c.fillRect(4, 4, 12, 12); c.fillRect(20, 20, 8, 8);
+    });
+    // 4: FLOOR_CARPET_RED
+    drawTile(4, (c) => {
+      c.fillStyle = '#880E4F'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#C2185B'; c.fillRect(4, 4, 24, 24);
+      c.fillStyle = '#E91E63'; c.fillRect(8, 8, 16, 16);
+    });
+    // 5: FLOOR_CARPET_GREEN
+    drawTile(5, (c) => {
+      c.fillStyle = '#1B5E20'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#2E7D32'; c.fillRect(4, 4, 24, 24);
+    });
+    // 6: FLOOR_TILE_BATH
+    drawTile(6, (c) => {
+      c.fillStyle = '#FAFAFA'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#E0E0E0';
+      c.fillRect(0, 0, 16, 16); c.fillRect(16, 16, 16, 16);
+    });
+    // 7: FLOOR_STONE
+    drawTile(7, (c) => {
+      c.fillStyle = '#424242'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#212121'; c.fillRect(0, 0, 32, 2); c.fillRect(0, 0, 2, 32);
+    });
 
-    // Tile 3: Border/Decorative Wall top
-    ctx.fillStyle = '#1c1917';
-    ctx.fillRect(96, 0, 32, 32);
-    ctx.fillStyle = '#78716c';
-    ctx.fillRect(96, 0, 32, 8); // Gold/Stone lining
-    ctx.fillStyle = '#44403c';
-    ctx.fillRect(96, 8, 32, 24);
+    // 8: WALL_H
+    drawTile(8, (c) => {
+      c.fillStyle = '#292524'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#44403c'; c.strokeRect(0, 0, 32, 32); c.fillRect(4, 12, 24, 8);
+    });
+    // 9: WALL_V
+    drawTile(9, (c) => {
+      c.fillStyle = '#292524'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#44403c'; c.strokeRect(0, 0, 32, 32); c.fillRect(12, 4, 8, 24);
+    });
+    // 10: WALL_CORNER_NW
+    drawTile(10, (c) => {
+      c.fillStyle = '#292524'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#44403c'; c.strokeRect(0, 0, 32, 32); c.fillRect(12, 12, 20, 8); c.fillRect(12, 12, 8, 20);
+    });
+    // 11: WALL_CORNER_NE
+    drawTile(11, (c) => {
+      c.fillStyle = '#292524'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#44403c'; c.strokeRect(0, 0, 32, 32); c.fillRect(0, 12, 20, 8); c.fillRect(12, 12, 8, 20);
+    });
+    // 12: WALL_CORNER_SW
+    drawTile(12, (c) => {
+      c.fillStyle = '#292524'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#44403c'; c.strokeRect(0, 0, 32, 32); c.fillRect(12, 12, 20, 8); c.fillRect(12, 0, 8, 20);
+    });
+    // 13: WALL_CORNER_SE
+    drawTile(13, (c) => {
+      c.fillStyle = '#292524'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#44403c'; c.strokeRect(0, 0, 32, 32); c.fillRect(0, 12, 20, 8); c.fillRect(12, 0, 8, 20);
+    });
+    // 14: WALL_T_OPEN_E
+    drawTile(14, (c) => {
+      c.fillStyle = '#292524'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#44403c'; c.strokeRect(0, 0, 32, 32); c.fillRect(12, 0, 8, 32); c.fillRect(12, 12, 20, 8);
+    });
+    // 15: WALL_T_OPEN_W
+    drawTile(15, (c) => {
+      c.fillStyle = '#292524'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#44403c'; c.strokeRect(0, 0, 32, 32); c.fillRect(12, 0, 8, 32); c.fillRect(0, 12, 12, 8);
+    });
+    // 16: WALL_TRIM
+    drawTile(16, (c) => {
+      c.fillStyle = '#1c1917'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#78716c'; c.fillRect(0, 0, 32, 8);
+      c.fillStyle = '#44403c'; c.fillRect(0, 8, 32, 24);
+    });
+
+    // 17: DOOR_H
+    drawTile(17, (c) => {
+      c.fillStyle = '#1c1917'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#78716c'; c.fillRect(0, 24, 32, 8);
+    });
+    // 18: DOOR_V
+    drawTile(18, (c) => {
+      c.fillStyle = '#1c1917'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#78716c'; c.fillRect(24, 0, 8, 32);
+    });
+
+    // 19: BOOKSHELF_L
+    drawTile(19, (c) => {
+      c.fillStyle = '#5D4037'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#3E2723'; c.fillRect(2, 2, 30, 28);
+      c.fillStyle = '#D7CCC8'; c.fillRect(6, 6, 4, 10); c.fillRect(12, 6, 8, 10); // Books
+      c.fillStyle = '#A1887F'; c.fillRect(8, 20, 6, 8);
+    });
+    // 20: BOOKSHELF_R
+    drawTile(20, (c) => {
+      c.fillStyle = '#5D4037'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#3E2723'; c.fillRect(0, 2, 30, 28);
+      c.fillStyle = '#A1887F'; c.fillRect(2, 6, 6, 10); c.fillRect(12, 18, 4, 10); // Books
+    });
+    // 21: DESK_L
+    drawTile(21, (c) => {
+      c.fillStyle = '#795548'; c.fillRect(4, 8, 28, 16);
+      c.fillStyle = '#4E342E'; c.fillRect(6, 10, 24, 12); // Desk mat
+    });
+    // 22: DESK_R
+    drawTile(22, (c) => {
+      c.fillStyle = '#795548'; c.fillRect(0, 8, 28, 16);
+      c.fillStyle = '#FAFAFA'; c.fillRect(4, 12, 8, 10); // Paper
+      c.fillStyle = '#212121'; c.fillRect(20, 10, 4, 6); // Inkwell
+    });
+    // 23: BED_HEAD
+    drawTile(23, (c) => {
+      c.fillStyle = '#5D4037'; c.fillRect(4, 0, 24, 32); // Frame
+      c.fillStyle = '#FFFFFF'; c.fillRect(6, 4, 20, 12); // Pillows
+      c.fillStyle = '#B71C1C'; c.fillRect(6, 16, 20, 16); // Blanket
+    });
+    // 24: BED_FOOT
+    drawTile(24, (c) => {
+      c.fillStyle = '#5D4037'; c.fillRect(4, 0, 24, 28); // Frame
+      c.fillStyle = '#B71C1C'; c.fillRect(6, 0, 20, 24); // Blanket
+    });
+    // 25: SINK
+    drawTile(25, (c) => {
+      c.fillStyle = '#BDBDBD'; c.fillRect(4, 4, 24, 16);
+      c.fillStyle = '#E0E0E0'; c.fillRect(8, 8, 16, 10);
+      c.fillStyle = '#757575'; c.fillRect(14, 4, 4, 4); // Faucet
+    });
+    // 26: SAFE
+    drawTile(26, (c) => {
+      c.fillStyle = '#616161'; c.fillRect(4, 4, 24, 24);
+      c.fillStyle = '#424242'; c.fillRect(6, 6, 20, 20);
+      c.fillStyle = '#9E9E9E'; c.beginPath(); c.arc(16, 16, 4, 0, 2*Math.PI); c.fill(); // Dial
+    });
+    // 27: CLOCK
+    drawTile(27, (c) => {
+      c.fillStyle = '#4E342E'; c.fillRect(8, 0, 16, 32);
+      c.fillStyle = '#FFC107'; c.beginPath(); c.arc(16, 8, 4, 0, 2*Math.PI); c.fill(); // Face
+      c.fillStyle = '#FFB300'; c.fillRect(15, 16, 2, 10); // Pendulum
+    });
+    // 28: FIREPLACE_L
+    drawTile(28, (c) => {
+      c.fillStyle = '#424242'; c.fillRect(0, 0, 32, 24);
+      c.fillStyle = '#212121'; c.fillRect(8, 8, 24, 16);
+      c.fillStyle = '#FF5722'; c.beginPath(); c.arc(24, 20, 6, 0, Math.PI); c.fill(); // Fire
+    });
+    // 29: FIREPLACE_R
+    drawTile(29, (c) => {
+      c.fillStyle = '#424242'; c.fillRect(0, 0, 32, 24);
+      c.fillStyle = '#212121'; c.fillRect(0, 8, 24, 16);
+      c.fillStyle = '#FF5722'; c.beginPath(); c.arc(8, 20, 6, 0, Math.PI); c.fill(); // Fire
+    });
+    // 30: TABLE
+    drawTile(30, (c) => {
+      c.fillStyle = '#6D4C41'; c.fillRect(2, 6, 28, 20);
+      c.fillStyle = '#FAFAFA'; c.beginPath(); c.arc(16, 16, 6, 0, 2*Math.PI); c.fill(); // Plate
+    });
+    // 31: CHAIR_UP
+    drawTile(31, (c) => {
+      c.fillStyle = '#5D4037'; c.fillRect(8, 12, 16, 16);
+      c.fillStyle = '#3E2723'; c.fillRect(8, 12, 16, 4); // Backrest
+    });
+    // 32: CHAIR_DOWN
+    drawTile(32, (c) => {
+      c.fillStyle = '#5D4037'; c.fillRect(8, 4, 16, 16);
+      c.fillStyle = '#3E2723'; c.fillRect(8, 16, 16, 4); // Backrest
+    });
+    // 33: RUG_CENTER
+    drawTile(33, (c) => {
+      c.fillStyle = '#880E4F'; c.fillRect(0, 0, 32, 32);
+      c.fillStyle = '#F48FB1'; c.fillRect(12, 12, 8, 8); // Pattern
+    });
+    // 34: PLANT
+    drawTile(34, (c) => {
+      c.fillStyle = '#795548'; c.fillRect(10, 20, 12, 12); // Pot
+      c.fillStyle = '#2E7D32'; c.beginPath(); c.arc(16, 14, 10, 0, 2*Math.PI); c.fill(); // Leaves
+    });
+    // 35: WARDROBE
+    drawTile(35, (c) => {
+      c.fillStyle = '#4E342E'; c.fillRect(4, 0, 24, 32);
+      c.fillStyle = '#3E2723'; c.fillRect(6, 2, 10, 28); c.fillRect(16, 2, 10, 28); // Doors
+      c.fillStyle = '#FFC107'; c.fillRect(14, 16, 2, 4); c.fillRect(16, 16, 2, 4); // Handles
+    });
+    // 36: SHADOW
+    drawTile(36, (c) => {
+      c.fillStyle = 'rgba(0, 0, 0, 0.25)';
+      c.fillRect(0, 0, 32, 32);
+    });
 
     scene.textures.addImage('mansion_tiles', canvas);
   }

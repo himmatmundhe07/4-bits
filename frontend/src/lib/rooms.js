@@ -11,6 +11,8 @@ export async function createGame(input) {
       mode: input.mode,
       maxMembers: input.maxMembers,
       revealPolicy: input.revealPolicy,
+      maxRounds: input.maxRounds,
+      roundDurationMinutes: input.roundDurationMinutes,
       hostId: playerId,
       hostName: input.hostName.trim(),
     }),
