@@ -1,13 +1,15 @@
 services:
-  - type: static
+  - type: web
     name: hacksprint-frontend
     env: node
     rootDir: frontend
     buildCommand: npm install && npm run build
-    staticPublishPath: dist/client
+    startCommand: npm start
     envVars:
       - key: VITE_API_URL
         sync: false
+      - key: PORT
+        value: 3000
 
   - type: web
     name: hacksprint-backend
