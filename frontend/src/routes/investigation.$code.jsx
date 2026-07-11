@@ -50,12 +50,6 @@ function InvestigationScreen() {
   const [eliminatedSnippet, setEliminatedSnippet] = useState(null);
   const [voiceParticipants, setVoiceParticipants] = useState({});
 
-  // Phase & Voting State
-  const [phase, setPhase] = useState("investigation");
-  const [myVote, setMyVote] = useState("");
-  const [voted, setVoted] = useState(false);
-  const [finalReveal, setFinalReveal] = useState("");
-
   // Action State
   const [actionType, setActionType] = useState("ask");
   const [actionTarget, setActionTarget] = useState("");
