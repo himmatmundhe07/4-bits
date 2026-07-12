@@ -10,6 +10,7 @@ export default function GameCanvas({
   clues = [],
   mapConfig = null,
   session = null,
+  customRegistry = {},
   gameRef: externalGameRef = null,
   onOverlapStart,
   onOverlapEnd 
@@ -44,8 +45,9 @@ export default function GameCanvas({
       clues,
       mapConfig,
       session,
+      customRegistry,
     };
-  }, [sceneKey, socket, roomCode, playerId, players, suspects, clues, mapConfig, session]);
+  }, [sceneKey, socket, roomCode, playerId, players, suspects, clues, mapConfig, session, customRegistry]);
 
   useEffect(() => {
     handlersRef.current = { onOverlapStart, onOverlapEnd };
@@ -73,6 +75,14 @@ export default function GameCanvas({
         }
 
         const p = propsRef.current;
+        
+        // Apply initial custom registry values
+        if (p.customRegistry) {
+          Object.entries(p.customRegistry).forEach(([k, v]) => {
+            game.registry.set(k, v);
+          });
+        }
+
         game.scene.start(p.sceneKey, {
           socket: p.socket,
           roomCode: p.roomCode,
@@ -148,6 +158,20 @@ export default function GameCanvas({
       });
     }
   }, [sceneKey]);
+
+  // Sync registry updates
+  useEffect(() => {
+    const game = localGameRef.current;
+    if (!game) return;
+
+    if (customRegistry) {
+      Object.entries(customRegistry).forEach(([k, v]) => {
+        if (game.registry.get(k) !== v) {
+          game.registry.set(k, v);
+        }
+      });
+    }
+  }, [customRegistry]);
 
   // Sync data updates to active scene properties
   useEffect(() => {

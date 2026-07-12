@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { SettingsModal } from "@/components/SettingsModal";
 import LandingCanvas from "@/components/LandingCanvas";
 import { getReduceMotion, subscribeReduceMotion } from "@/lib/preferences";
 import { useTransition } from "@/lib/transitions";
@@ -19,34 +18,25 @@ const HOTSPOTS = {
 
 function Home() {
   const [reduceMotion, setReduceMotion] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const { setFogPaused } = useTransition();
-
   useEffect(() => {
     setReduceMotion(getReduceMotion());
     return subscribeReduceMotion(setReduceMotion);
   }, []);
 
-  useEffect(() => {
-    setFogPaused(settingsOpen);
-    return () => setFogPaused(false);
-  }, [settingsOpen, setFogPaused]);
-
   return (
-    <main className="min-h-screen bg-[color:var(--color-bg-base)] text-[color:var(--color-text-primary)]">
+    <main className="min-h-screen bg-[color:var(--color-bg-base)] text-[color:var(--color-text-primary)] flex flex-col relative">
       <LandingCanvas reduceMotion={reduceMotion} />
       
-      <section className="relative h-screen w-full overflow-hidden select-none flex flex-col items-center justify-center pointer-events-none" style={{ minHeight: 640 }}>
-        {/* Settings Button */}
-        <button
-          onClick={() => setSettingsOpen(true)}
-          className="absolute top-6 right-6 z-20 pointer-events-auto p-2 opacity-50 hover:opacity-100 transition-opacity"
-        >
-          <span className="font-mono text-xs tracking-widest text-[#9c9186]">SETTINGS</span>
-        </button>
+      {/* Persistent Top Bar */}
+      <header className="absolute top-0 left-0 right-0 h-16 bg-[#0a0809]/90 border-b-4 border-[#1a1113] z-30 flex items-center justify-between px-6 md:px-10 shadow-[0px_4px_0px_rgba(0,0,0,0.5)]">
+        <span className="font-['VT323'] text-xl tracking-widest text-[#9c9186]">CASE FILE &middot; PROLOGUE</span>
+        <div className="flex gap-4">
+          {/* Optional top-right space for future additions */}
+        </div>
+      </header>
 
-        <div className="z-10 flex flex-col items-center mt-[-10vh]">
-          <span className="font-['VT323'] text-xl tracking-widest text-[#9c9186] mb-4">CASE FILE &middot; PROLOGUE</span>
+      <section className="relative flex-1 w-full overflow-hidden select-none flex flex-col items-center justify-center pointer-events-none z-10" style={{ minHeight: 640 }}>
+        <div className="flex flex-col items-center mt-[-5vh]">
           
           <h1 className="font-['VT323'] text-7xl md:text-8xl lg:text-9xl tracking-wide text-[#e8e1d3] drop-shadow-2xl text-center leading-none" style={{ textShadow: '0px 4px 0px #0a0503' }}>
             The Last<br />Witness
@@ -75,75 +65,27 @@ function Home() {
               <span className="font-['VT323'] text-2xl md:text-3xl tracking-widest text-[#e8e1d3] group-hover:text-white transition-colors" style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.5)' }}>JOIN ROOM</span>
             </Link>
           </div>
+
+          <div className="mt-8 flex gap-6 pointer-events-auto">
+            <Link
+              to="/profile"
+              className="font-['VT323'] text-xl tracking-widest text-[#9c9186] hover:text-white transition-colors flex items-center gap-2"
+            >
+              PROFILE
+            </Link>
+            <Link
+              to="/settings"
+              className="font-['VT323'] text-xl tracking-widest text-[#9c9186] hover:text-white transition-colors flex items-center gap-2"
+            >
+              SETTINGS
+            </Link>
+          </div>
         </div>
       </section>
 
-      <HowItWorks />
       <Footer />
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </main>
   );
-
-}
-
-
-
-function HowItWorks() {
-  const steps = [
-  {
-    n: "I",
-    title: "A new crime, every session",
-    body: "The scene, the motive, and the guilty party are freshly generated the moment your room opens. Nothing is prewritten. Nothing repeats."
-  },
-  {
-    n: "II",
-    title: "A private dossier for each player",
-    body: "Every investigator receives their own file — witnesses interviewed, evidence catalogued, alibis half-remembered. No two dossiers overlap completely."
-  },
-  {
-    n: "III",
-    title: "Investigate together",
-    body: "Compare notes across the table. Contradict each other. The truth only surfaces when the fragments are laid side by side."
-  },
-  {
-    n: "IV",
-    title: "The truth, at the end",
-    body: "When the last statement is heard, the case file opens. The full sequence of events is revealed — including what no single investigator could have known alone."
-  }];
-
-
-  return (
-    <section className="bg-[color:var(--color-bg-base)] px-6 py-24 md:py-32 md:px-10">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-14">
-          <span className="tracked-caps text-[11px] text-[color:var(--color-text-tertiary)]">
-            The Procedure
-          </span>
-          <h2 className="font-serif-display mt-3 text-3xl md:text-4xl text-[color:var(--color-text-primary)]">
-            How it works
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 gap-px bg-[color:var(--color-border-hairline)] md:grid-cols-2">
-          {steps.map((s) =>
-          <article
-            key={s.n}
-            className="bg-[color:var(--color-bg-elevated)] p-8 md:p-10">
-            
-              <div className="font-serif-display text-2xl text-[color:var(--color-accent-blood)]">
-                {s.n}
-              </div>
-              <h3 className="font-serif-display mt-4 text-xl text-[color:var(--color-text-primary)]">
-                {s.title}
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-[color:var(--color-text-secondary)]">
-                {s.body}
-              </p>
-            </article>
-          )}
-        </div>
-      </div>
-    </section>);
 
 }
 

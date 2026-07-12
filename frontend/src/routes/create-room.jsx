@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { createRoom, MODE_LABELS } from "@/lib/rooms";
-import { setStoredName, getStoredName } from "@/lib/player-id";
+import { setStoredName, getStoredName, getAppearance } from "@/lib/player-id";
 import { FileText, User, Users, Compass, ShieldAlert, ArrowLeft, Plus } from "lucide-react";
 import LandingCanvas from "@/components/LandingCanvas";
 import { getReduceMotion } from "@/lib/preferences";
@@ -40,7 +40,8 @@ function CreateRoom() {
         maxRounds,
         roundDurationMinutes,
         revealPolicy,
-        hostName: hostName.trim()
+        hostName: hostName.trim(),
+        appearance: getAppearance()
       });
       navigate({ to: "/lobby/$code", params: { code } });
     } catch (err) {
@@ -84,7 +85,7 @@ function CreateRoom() {
           <span className="font-typewriter text-[10px] text-[color:var(--color-accent-blood)] font-bold tracking-widest typewriter-ink">
             CASE FILE INITIATION
           </span>
-          <h1 className="font-serif-display mt-0.5 text-3xl md:text-4xl text-amber-50/95 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+          <h1 className="font-serif-display mt-0.5 text-2xl md:text-4xl text-amber-50/95 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
             Open New Inquiry
           </h1>
         </div>
@@ -326,7 +327,7 @@ function CreateRoom() {
             <button
               type="submit"
               disabled={!canSubmit}
-              className={`inline-flex items-center gap-2 font-['VT323'] px-5 py-2.5 text-xl transition-colors border-4 relative ${
+              className={`w-full md:w-auto inline-flex justify-center items-center gap-2 font-['VT323'] px-5 py-2.5 text-lg md:text-xl transition-colors border-4 relative ${
                 canSubmit 
                   ? "bg-[#8a2029] border-[#1a1113] text-white shadow-[inset_-2px_-2px_0px_rgba(0,0,0,0.5),inset_2px_2px_0px_rgba(255,255,255,0.2)] hover:bg-[#a62631]" 
                   : "bg-[#151314] border-[#1a1113] text-stone-600 cursor-not-allowed"

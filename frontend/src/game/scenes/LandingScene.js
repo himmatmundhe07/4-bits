@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { generateGameTextures } from '../utils/textureGenerator';
 import { buildTilemapJSON } from '../utils/mapBuilder';
 import { mansionMap } from '../maps/mansionMap';
+import PlayerSprite, { registerPlayerAnimations } from '../entities/PlayerSprite';
 
 export default class LandingScene extends Phaser.Scene {
   constructor() {
@@ -15,13 +16,8 @@ export default class LandingScene extends Phaser.Scene {
   }
 
   create() {
-    // Walk Animations (used for idle/emotes)
-    if (!this.anims.exists('walk_down')) {
-      this.anims.create({ key: 'walk_down', frames: this.anims.generateFrameNumbers('character_spritesheet', { start: 0, end: 2 }), frameRate: 8, repeat: -1 });
-      this.anims.create({ key: 'walk_left', frames: this.anims.generateFrameNumbers('character_spritesheet', { start: 3, end: 5 }), frameRate: 8, repeat: -1 });
-      this.anims.create({ key: 'walk_right', frames: this.anims.generateFrameNumbers('character_spritesheet', { start: 6, end: 8 }), frameRate: 8, repeat: -1 });
-      this.anims.create({ key: 'walk_up', frames: this.anims.generateFrameNumbers('character_spritesheet', { start: 9, end: 11 }), frameRate: 8, repeat: -1 });
-    }
+    // Register layered animations
+    registerPlayerAnimations(this.anims);
 
     // Load Map
     const map = this.make.tilemap({ key: 'landing_map' });
@@ -63,10 +59,34 @@ export default class LandingScene extends Phaser.Scene {
     ];
 
     positions.forEach((pos, i) => {
-      const sprite = this.add.sprite(pos.x, pos.y, 'character_spritesheet');
-      sprite.setTint(colors[i]);
-      sprite.play(pos.dir);
+      // Create random appearances for the dancing characters
+      const apps = [
+        { skinTone: 0xffcd94, outfit: 'outfit_trenchcoat', outfitColor: 0x8a2029, hairStyle: 'hair_slicked', hairColor: 0x451a03 },
+        { skinTone: 0x8d5524, outfit: 'outfit_vest', outfitColor: 0x1e293b, hairStyle: 'hair_short', hairColor: 0x000000 },
+        { skinTone: 0xffe0bd, outfit: 'outfit_casual', outfitColor: 0x047857, hairStyle: 'hair_bob', hairColor: 0xca8a04 }
+      ];
+      
+      let app = apps[i];
+      if (i === 1) { // Center character tracks the player's custom appearance
+        app = this.registry.get('landing_appearance') || app;
+      }
+
+      const sprite = new PlayerSprite(this, pos.x, pos.y, app);
+      sprite.playAnim(pos.dir);
       if (pos.flip) sprite.setFlipX(true);
+      
+      if (i === 1) {
+        const onAppearanceChange = (parent, key, data) => {
+          if (key === 'landing_appearance' && sprite.active) {
+            sprite.setAppearance(data);
+            sprite.playAnim(pos.dir); // Refresh animation for new textures
+          }
+        };
+        this.registry.events.on('changedata', onAppearanceChange);
+        this.events.once('shutdown', () => {
+          this.registry.events.off('changedata', onAppearanceChange);
+        });
+      }
 
       // Rhythmic "dance" tween (smooth bobbing and gentle rotation instead of rapid flipping)
       this.tweens.add({
@@ -108,10 +128,10 @@ export default class LandingScene extends Phaser.Scene {
     }
     
     positions.forEach(pos => {
-      // Soft spotlights for characters
+      // Soft spotlights for characters (anchored at their feet)
       for (let r = 100; r > 0; r -= 25) {
         overlay.fillStyle(0xffffff, 0.2);
-        overlay.fillCircle(pos.x, pos.y, r);
+        overlay.fillCircle(pos.x, pos.y + 16, r);
       }
     });
     
@@ -136,9 +156,9 @@ export default class LandingScene extends Phaser.Scene {
     // Draw warm ambient spotlights over the dancing characters
     positions.forEach(pos => {
       this.glow.fillStyle(0xfcd34d, 0.1);
-      this.glow.fillCircle(pos.x, pos.y, 90);
+      this.glow.fillCircle(pos.x, pos.y + 16, 90);
       this.glow.fillStyle(0xfcd34d, 0.15);
-      this.glow.fillCircle(pos.x, pos.y, 40);
+      this.glow.fillCircle(pos.x, pos.y + 16, 40);
     });
 
     // Subtle Flicker animation (more stable and less intense)

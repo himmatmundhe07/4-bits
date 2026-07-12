@@ -43,6 +43,20 @@ export function AudioManager() {
     }
   }, [pathname, currentTrack]);
 
+  useEffect(() => {
+    // Initial volume load
+    const storedVol = window.localStorage.getItem("tlw:music-volume");
+    const vol = storedVol ? parseInt(storedVol, 10) / 100 : 1;
+    if (audioRef.current) audioRef.current.volume = vol;
+
+    // Listen for live updates
+    const handleVolume = (e) => {
+      if (audioRef.current) audioRef.current.volume = e.detail / 100;
+    };
+    window.addEventListener("tlw:music-volume", handleVolume);
+    return () => window.removeEventListener("tlw:music-volume", handleVolume);
+  }, []);
+
   return (
     <audio 
       ref={audioRef}

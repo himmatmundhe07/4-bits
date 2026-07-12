@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 
-export default function LandingCanvas({ reduceMotion, focusRoom = 'library' }) {
+export default function LandingCanvas({ reduceMotion, focusRoom = 'library', customAppearance }) {
   const containerRef = useRef(null);
   const gameRef = useRef(null);
   const [useFallback, setUseFallback] = useState(false);
+
+  useEffect(() => {
+    if (gameRef.current && customAppearance) {
+      gameRef.current.registry.set('landing_appearance', customAppearance);
+    }
+  }, [customAppearance]);
 
   useEffect(() => {
     // Responsive Fallback Check
@@ -30,6 +36,9 @@ export default function LandingCanvas({ reduceMotion, focusRoom = 'library' }) {
           return;
         }
         game.registry.set('focusRoom', focusRoom);
+        if (customAppearance) {
+          game.registry.set('landing_appearance', customAppearance);
+        }
         game.scene.start('LandingScene');
         gameRef.current = game;
       };
@@ -49,7 +58,7 @@ export default function LandingCanvas({ reduceMotion, focusRoom = 'library' }) {
         gameRef.current = null;
       }
     };
-  }, [reduceMotion]);
+  }, [reduceMotion, focusRoom]);
 
   if (useFallback) {
     return (

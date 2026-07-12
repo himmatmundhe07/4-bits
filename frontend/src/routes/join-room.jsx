@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { joinRoom } from "@/lib/rooms";
-import { getStoredName, setStoredName } from "@/lib/player-id";
+import { getStoredName, setStoredName, getAppearance } from "@/lib/player-id";
 
 import LandingCanvas from "@/components/LandingCanvas";
 import { getReduceMotion } from "@/lib/preferences";
@@ -32,7 +32,7 @@ function JoinRoom() {
     setError(null);
     try {
       setStoredName(name.trim());
-      const result = await joinRoom({ code, name });
+      const result = await joinRoom({ code, name, appearance: getAppearance() });
       if (!result.ok) {
         setError(ERROR_COPY[result.error]);
         setSubmitting(false);
@@ -64,7 +64,7 @@ function JoinRoom() {
           <span className="font-['VT323'] text-xl text-[color:var(--color-text-tertiary)] tracking-widest">
             Existing Case File
           </span>
-          <h1 className="font-['VT323'] mt-2 text-6xl text-[color:var(--color-text-primary)]" style={{ textShadow: '0px 4px 0px #0a0503' }}>
+          <h1 className="font-['VT323'] mt-2 text-5xl md:text-6xl text-[color:var(--color-text-primary)]" style={{ textShadow: '0px 4px 0px #0a0503' }}>
             Join Room
           </h1>
         </div>
@@ -82,7 +82,7 @@ function JoinRoom() {
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 6))}
               placeholder="——————"
-              className="font-['VT323'] mt-2 w-full border-0 border-b bg-transparent px-0 py-2 text-5xl tracking-[0.2em] text-[color:var(--color-text-primary)] outline-none focus:border-[color:var(--color-accent-blood)]"
+              className="font-['VT323'] mt-2 w-full border-0 border-b bg-transparent px-0 py-2 text-4xl md:text-5xl tracking-[0.1em] md:tracking-[0.2em] text-[color:var(--color-text-primary)] outline-none focus:border-[color:var(--color-accent-blood)]"
               style={{ borderBottomColor: "var(--color-border-hairline-strong)" }}
               required />
             
@@ -114,7 +114,7 @@ function JoinRoom() {
             <button
               type="submit"
               disabled={!canSubmit}
-              className={`font-['VT323'] px-8 py-3 text-2xl transition-colors border-4 relative ${
+              className={`w-full md:w-auto font-['VT323'] px-6 md:px-8 py-3 text-xl md:text-2xl transition-colors border-4 relative ${
                 canSubmit 
                   ? "bg-[#8a2029] border-[#1a1113] text-white shadow-[inset_-2px_-2px_0px_rgba(0,0,0,0.5),inset_2px_2px_0px_rgba(255,255,255,0.2)] hover:bg-[#a62631]" 
                   : "bg-[#151314] border-[#1a1113] text-stone-600 cursor-not-allowed"

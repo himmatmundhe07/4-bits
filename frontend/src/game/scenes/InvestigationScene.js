@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import Player from '../entities/Player';
+import { registerPlayerAnimations } from '../entities/PlayerSprite';
 import { generateGameTextures } from '../utils/textureGenerator';
 import { buildTilemapJSON } from '../utils/mapBuilder';
 import { remapMapConfig } from '../utils/zoneMapper';
@@ -52,32 +53,7 @@ export default class InvestigationScene extends Phaser.Scene {
 
   create() {
     // 1. Create Walk Animations
-    if (!this.anims.exists('walk_down')) {
-      this.anims.create({
-        key: 'walk_down',
-        frames: this.anims.generateFrameNumbers('character_spritesheet', { start: 0, end: 2 }),
-        frameRate: 8,
-        repeat: -1
-      });
-      this.anims.create({
-        key: 'walk_left',
-        frames: this.anims.generateFrameNumbers('character_spritesheet', { start: 3, end: 5 }),
-        frameRate: 8,
-        repeat: -1
-      });
-      this.anims.create({
-        key: 'walk_right',
-        frames: this.anims.generateFrameNumbers('character_spritesheet', { start: 6, end: 8 }),
-        frameRate: 8,
-        repeat: -1
-      });
-      this.anims.create({
-        key: 'walk_up',
-        frames: this.anims.generateFrameNumbers('character_spritesheet', { start: 9, end: 11 }),
-        frameRate: 8,
-        repeat: -1
-      });
-    }
+    registerPlayerAnimations(this.anims);
 
     // 2. Load Tiled Map
     const map = this.make.tilemap({ key: 'investigation_map' });
@@ -387,9 +363,11 @@ export default class InvestigationScene extends Phaser.Scene {
     const isLocal = pId === this.playerId;
     const spawnX = p.x || 800;
     const spawnY = p.y || 600;
-    const tintColor = this.getColorFromId(pId);
 
-    const playerSprite = new Player(this, spawnX, spawnY, pId, p.name || 'Unknown', isLocal, tintColor);
+    const fallbackColor = this.getColorFromId(pId);
+    const appearance = p.appearance || { skinTone: fallbackColor, outfit: 'outfit_trenchcoat', outfitColor: fallbackColor };
+
+    const playerSprite = new Player(this, spawnX, spawnY, pId, p.name || 'Unknown', isLocal, appearance);
     playerSprite.hideReadyStatus();
 
     // Collide with tilemap walls and furniture
