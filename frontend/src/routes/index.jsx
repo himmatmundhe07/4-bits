@@ -63,6 +63,7 @@ function Home() {
             >
               <div className="absolute inset-0 border-4 border-[#1a1113]" />
               <span className="font-['VT323'] text-2xl md:text-3xl tracking-widest text-[#e8e1d3] group-hover:text-white transition-colors" style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.5)' }}>JOIN ROOM</span>
+            </Link>
           </div>
 
           <div className="mt-8 flex gap-6 pointer-events-auto">
