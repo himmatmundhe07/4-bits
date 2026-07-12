@@ -193,7 +193,7 @@ function Lobby() {
             <span className="font-['VT323'] text-xl text-[color:var(--color-text-tertiary)] tracking-widest">
               Investigation · {MODE_LABELS[room.mode] || 'Unknown'}
             </span>
-            <h1 className="font-['VT323'] mt-1 text-5xl text-white drop-shadow-md">
+            <h1 className="font-['VT323'] mt-1 text-4xl md:text-5xl text-white drop-shadow-md">
               {room.name || 'Mystery Game'}
             </h1>
             <p className="mt-1 text-xl font-['VT323'] text-[color:var(--color-text-secondary)] max-w-2xl">
@@ -204,7 +204,7 @@ function Lobby() {
             <span className="font-['VT323'] block text-lg text-[color:var(--color-text-tertiary)] tracking-widest">
               Case Code
             </span>
-            <span className="font-['VT323'] mt-0.5 block text-5xl tracking-widest text-[#8a2029] drop-shadow-[2px_2px_0px_rgba(0,0,0,1)]">
+            <span className="font-['VT323'] mt-0.5 block text-4xl md:text-5xl tracking-[0.1em] md:tracking-widest text-[#8a2029] drop-shadow-[2px_2px_0px_rgba(0,0,0,1)]">
               {room.roomCode}
             </span>
           </div>
@@ -212,7 +212,7 @@ function Lobby() {
 
         <div className="mt-4 flex flex-col md:flex-row gap-4 justify-center items-stretch">
           {socket && (
-            <div className="w-full md:w-[480px] h-[360px] shrink-0 relative overflow-hidden bg-[#0a0809]/95 border-4 border-[#1a1113] shadow-[10px_10px_0px_rgba(0,0,0,0.8)]">
+            <div className="w-full md:w-[480px] aspect-[4/3] md:h-[360px] shrink-0 relative overflow-hidden bg-[#0a0809]/95 border-4 border-[#1a1113] shadow-[10px_10px_0px_rgba(0,0,0,0.8)]">
               <GameCanvas
                 sceneKey="LobbyScene"
                 socket={socket}
@@ -224,7 +224,7 @@ function Lobby() {
           )}
 
           <div
-            className="w-full md:w-[320px] h-[360px] border-4 border-[#1a1113] p-4 flex flex-col bg-[#0a0809]/95 shadow-[10px_10px_0px_rgba(0,0,0,0.8)]">
+            className="w-full md:w-[320px] min-h-[250px] md:h-[360px] border-4 border-[#1a1113] p-4 flex flex-col bg-[#0a0809]/95 shadow-[10px_10px_0px_rgba(0,0,0,0.8)]">
             
             <div className="flex items-baseline justify-between shrink-0 mb-4 border-b border-[#3b2a2d] pb-2">
               <span className="font-['VT323'] text-xl text-[color:var(--color-text-secondary)] tracking-widest">
@@ -281,11 +281,11 @@ function Lobby() {
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
           {me ?
-          <button
+            <button
             type="button"
             onClick={onToggleReady}
             disabled={busy}
-            className={`font-['VT323'] px-6 py-2.5 text-2xl transition-colors border-4 relative shadow-[inset_-2px_-2px_0px_rgba(0,0,0,0.5),inset_2px_2px_0px_rgba(255,255,255,0.2)] ${
+            className={`w-full sm:w-auto font-['VT323'] px-6 py-2.5 text-xl md:text-2xl transition-colors border-4 relative shadow-[inset_-2px_-2px_0px_rgba(0,0,0,0.5),inset_2px_2px_0px_rgba(255,255,255,0.2)] ${
               me.isReady 
                 ? "bg-[#2a2a2a] border-[#1a1113] text-white hover:bg-[#333]" 
                 : "bg-[#8a2029] border-[#1a1113] text-white hover:bg-[#a62631]"
@@ -305,7 +305,7 @@ function Lobby() {
             type="button"
             onClick={onBegin}
             disabled={!canBegin || busy}
-            className={`font-['VT323'] px-8 py-2.5 text-2xl transition-colors border-4 relative ${
+            className={`w-full sm:w-auto font-['VT323'] px-8 py-2.5 text-xl md:text-2xl transition-colors border-4 relative ${
               canBegin 
                 ? "bg-[#8a2029] border-[#1a1113] text-white shadow-[inset_-2px_-2px_0px_rgba(0,0,0,0.5),inset_2px_2px_0px_rgba(255,255,255,0.2)] hover:bg-[#a62631]" 
                 : "bg-[#151314] border-[#1a1113] text-stone-600 cursor-not-allowed shadow-none"
